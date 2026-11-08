@@ -1,0 +1,53 @@
+diff --git a/src/FortniteReplayReader/Models/NetFieldExports/Items/Chest.cs b/src/FortniteReplayReader/Models/NetFieldExports/Items/Chest.cs
+index 2e9eb52..3617f81 100644
+--- a/src/FortniteReplayReader/Models/NetFieldExports/Items/Chest.cs
++++ b/src/FortniteReplayReader/Models/NetFieldExports/Items/Chest.cs
+@@ -4,7 +4,7 @@ using Unreal.Core.Models.Enums;
+ 
+ namespace FortniteReplayReader.Models.NetFieldExports.Items;
+ 
+-[NetFieldExportGroup("/Game/Building/ActorBlueprints/Containers/Tiered_Chest_Athena.Tiered_Chest_Athena_C", minimalParseMode: ParseMode.Debug)]
++[NetFieldExportGroup("/Game/Building/ActorBlueprints/Containers/Tiered_Chest_Athena.Tiered_Chest_Athena_C", minimalParseMode: ParseMode.Minimal)]
+ public class Chest : BaseContainer
+ {
+     [NetFieldExport("bDestroyOnPlayerBuildingPlacement", RepLayoutCmdType.PropertyBool)]
+@@ -20,7 +20,7 @@ public class Chest : BaseContainer
+     public DebuggingObject EffectContext { get; set; }
+ }
+ 
+-[NetFieldExportGroup("/Game/Building/ActorBlueprints/Containers/Creative_Tiered_Chest.Creative_Tiered_Chest_C", minimalParseMode: ParseMode.Debug)]
++[NetFieldExportGroup("/Game/Building/ActorBlueprints/Containers/Creative_Tiered_Chest.Creative_Tiered_Chest_C", minimalParseMode: ParseMode.Minimal)]
+ public class CreativeChest : Chest
+ {
+     [NetFieldExport("SpawnItems", RepLayoutCmdType.Property)]
+@@ -33,7 +33,7 @@ public class CreativeChest : Chest
+     public DebuggingObject Quantity { get; set; }
+ }
+ 
+-[NetFieldExportGroup("/Game/Building/ActorBlueprints/Containers/Tiered_Chest_Athena_FactionChest_NoLocks.Tiered_Chest_Athena_FactionChest_NoLocks_C", minimalParseMode: ParseMode.Debug)]
++[NetFieldExportGroup("/Game/Building/ActorBlueprints/Containers/Tiered_Chest_Athena_FactionChest_NoLocks.Tiered_Chest_Athena_FactionChest_NoLocks_C", minimalParseMode: ParseMode.Minimal)]
+ public class FactionChest : BaseContainer
+ {
+     [NetFieldExport("bDestroyOnPlayerBuildingPlacement", RepLayoutCmdType.PropertyBool)]
+diff --git a/src/Unreal.Core/ReplayReader.cs b/src/Unreal.Core/ReplayReader.cs
+index a125f76..904e5cd 100644
+--- a/src/Unreal.Core/ReplayReader.cs
++++ b/src/Unreal.Core/ReplayReader.cs
+@@ -803,6 +803,9 @@ public abstract class ReplayReader<T> where T : Replay, new()
+     /// <summary>
+     /// see https://github.com/EpicGames/UnrealEngine/blob/70bc980c6361d9a7d23f6d23ffe322a2d6ef16fb/Engine/Source/Runtime/Engine/Private/DemoNetDriver.cpp#L2848
+     /// </summary>
++    /// <summary>Heure (s) de l'image du replay en cours de lecture (ajout fortnite-stats).</summary>
++    public float DemoTime { get; protected set; }
++
+     public virtual void ReadDemoFrameIntoPlaybackPackets(FArchive archive)
+     {
+         if (archive.NetworkVersion >= NetworkVersionHistory.HISTORY_MULTIPLE_LEVELS)
+@@ -812,6 +815,7 @@ public abstract class ReplayReader<T> where T : Replay, new()
+         }
+ 
+         var timeSeconds = archive.ReadSingle();
++        DemoTime = timeSeconds;   // ajout fortnite-stats : heure de l'image en cours, continue et fiable
+         _logger?.LogDebug("ReadDemoFrameIntoPlaybackPackets at {}", timeSeconds);
+ 
+         if (archive.NetworkVersion >= NetworkVersionHistory.HISTORY_LEVEL_STREAMING_FIXES)

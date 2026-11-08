@@ -1,0 +1,9 @@
+# build output (contains local machine paths)
+bin/
+obj/
+build/
+*.spec
+__pycache__/
+*.pyc
+.vs/
+*.user
