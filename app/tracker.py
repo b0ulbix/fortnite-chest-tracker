@@ -18,7 +18,7 @@ from pathlib import Path
 from replay_reader import summarize
 
 APP_NAME = "Fortnite Chest Tracker"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "FortniteChestTracker"
 CONFIG_PATH = DATA_DIR / "config.json"
 DB_PATH = DATA_DIR / "games.db"
@@ -48,26 +48,32 @@ def system_lang():
         return "en"
 
 
-TEXTS = {
-    "game_added": ("Partie ajoutée ({date}) : {chests} coffres, {top}, {kills} kills",
-                   "Game added ({date}): {chests} chests, {top}, {kills} kills"),
-    "left": ("partie quittée", "left early"),
-    "replays_off_log": ("ALERTE : l'enregistrement des replays est désactivé dans Fortnite, tes games ne sont pas comptées !",
-                        "WARNING: replay recording is turned off in Fortnite, your games are not being counted!"),
-    "replays_off_title": ("Replays désactivés !", "Replays are turned off!"),
-    "replays_off_text": ("Tes coffres ne sont pas comptés. Fortnite > Réglages > Jeu > Replays : active Enregistrer les replays.",
-                         "Your chests are not counted. Fortnite > Settings > Game > Replays: turn on Record Replays."),
-    "count_failed": ("Comptage des coffres impossible ({name}) : {err}", "Could not count chests ({name}): {err}"),
-    "unreadable": ("Replay illisible {name} : {err}", "Unreadable replay {name}: {err}"),
-    "name_not_found": ("Pseudo « {want} » introuvable dans {name}, joueur suivi : {got}",
-                       "Name \"{want}\" not found in {name}, tracking: {got}"),
-    "watching": ("Surveillance des replays : {path}", "Watching replays: {path}"),
+TEXTS = {  # logs + notifications: key -> {lang: text}
+    "game_added": {"en": "Game added ({date}): {chests} chests, {top}, {kills} kills",
+                   "fr": "Partie ajoutée ({date}) : {chests} coffres, {top}, {kills} kills",
+                   "es": "Partida añadida ({date}): {chests} cofres, {top}, {kills} eliminaciones"},
+    "left": {"en": "left early", "fr": "partie quittée", "es": "abandonada"},
+    "replays_off_log": {"en": "WARNING: replay recording is turned off in Fortnite, your games are not being counted!",
+                        "fr": "ALERTE : l'enregistrement des replays est désactivé dans Fortnite, tes games ne sont pas comptées !",
+                        "es": "AVISO: la grabación de repeticiones está desactivada en Fortnite, ¡tus partidas no se cuentan!"},
+    "replays_off_title": {"en": "Replays are turned off!", "fr": "Replays désactivés !", "es": "¡Repeticiones desactivadas!"},
+    "replays_off_text": {"en": "Your chests are not counted. Fortnite > Settings > Game > Replays: turn on Record Replays.",
+                         "fr": "Tes coffres ne sont pas comptés. Fortnite > Réglages > Jeu > Replays : active Enregistrer les replays.",
+                         "es": "Tus cofres no se cuentan. Fortnite > Configuración > Juego > Repeticiones: activa Grabar repeticiones."},
+    "count_failed": {"en": "Could not count chests ({name}): {err}", "fr": "Comptage des coffres impossible ({name}) : {err}",
+                     "es": "No se pudieron contar los cofres ({name}): {err}"},
+    "unreadable": {"en": "Unreadable replay {name}: {err}", "fr": "Replay illisible {name} : {err}",
+                   "es": "Repetición ilegible {name}: {err}"},
+    "name_not_found": {"en": "Name \"{want}\" not found in {name}, tracking: {got}",
+                       "fr": "Pseudo « {want} » introuvable dans {name}, joueur suivi : {got}",
+                       "es": "Nombre \"{want}\" no encontrado en {name}, se sigue a: {got}"},
+    "watching": {"en": "Watching replays: {path}", "fr": "Surveillance des replays : {path}", "es": "Vigilando repeticiones: {path}"},
 }
 
 
 def tr(key, lang, **kw):
-    fr, en = TEXTS[key]
-    return (fr if lang == "fr" else en).format(**kw)
+    texts = TEXTS[key]
+    return texts.get(lang, texts["en"]).format(**kw)
 
 
 # ---------------------------------------------------------------- config
@@ -245,12 +251,13 @@ def scan(con, cfg, on_game=None):
 
 
 # ---------------------------------------------------------------- stats
-LABELS = {
-    "chests": ("Coffres ouverts", "Chests opened"), "chests_pg": ("Coffres / partie", "Chests / game"),
-    "games": ("Parties", "Games"), "wins": ("Top 1", "Wins"), "top10": ("Top 10", "Top 10"),
-    "kills": ("Kills", "Kills"), "kills_pg": ("Kills / partie", "Kills / game"), "kd": ("K/D", "K/D"),
-    "dmg_pg": ("Dégâts / partie", "Damage / game"), "acc": ("Précision moy.", "Avg. accuracy"),
-    "time": ("Temps de jeu", "Time played"),
+LABELS = {  # dashboard cards: key -> (en, fr, es)
+    "chests": ("Chests opened", "Coffres ouverts", "Cofres abiertos"),
+    "chests_pg": ("Chests / game", "Coffres / partie", "Cofres / partida"),
+    "games": ("Games", "Parties", "Partidas"), "wins": ("Wins", "Top 1", "Victorias"), "top10": ("Top 10", "Top 10", "Top 10"),
+    "kills": ("Kills", "Kills", "Eliminaciones"), "kills_pg": ("Kills / game", "Kills / partie", "Elim. / partida"),
+    "kd": ("K/D", "K/D", "K/D"), "dmg_pg": ("Damage / game", "Dégâts / partie", "Daño / partida"),
+    "acc": ("Avg. accuracy", "Précision moy.", "Precisión media"), "time": ("Time played", "Temps de jeu", "Tiempo jugado"),
 }
 
 
@@ -282,23 +289,23 @@ def fmt_day(date):
 
 
 def records(r):
-    """Personal bests: list of (label fr, label en, value, detail fr, detail en)."""
+    """Personal bests: list of ((label en, fr, es), value, (detail en, fr, es))."""
     out = []
 
-    def best(col, fr, en, fmt=str, keep=lambda x: True):
+    def best(col, labels, fmt=str, keep=lambda x: True):
         c = [x for x in r if x[col] is not None and keep(x)]
         if c:
             x = max(c, key=lambda x: x[col])
             d = fmt_day(x["date"]) + (f" · Top {x['placement']}" if x["placement"] else "")
-            out.append((fr, en, fmt(x[col]), d, d))
+            out.append((labels, fmt(x[col]), (d, d, d)))
 
-    best("chests", "Plus de coffres en 1 game", "Most chests in 1 game")
-    best("eliminations", "Plus de kills en 1 game", "Most kills in 1 game")
-    best("weapon_damage", "Plus de dégâts en 1 game", "Most damage in 1 game")
-    best("assists", "Plus d'assists en 1 game", "Most assists in 1 game")
-    best("accuracy", "Meilleure précision", "Best accuracy", lambda v: f"{100 * v:.0f} %",
+    best("chests", ("Most chests in 1 game", "Plus de coffres en 1 game", "Más cofres en 1 partida"))
+    best("eliminations", ("Most kills in 1 game", "Plus de kills en 1 game", "Más eliminaciones en 1 partida"))
+    best("weapon_damage", ("Most damage in 1 game", "Plus de dégâts en 1 game", "Más daño en 1 partida"))
+    best("assists", ("Most assists in 1 game", "Plus d'assists en 1 game", "Más asistencias en 1 partida"))
+    best("accuracy", ("Best accuracy", "Meilleure précision", "Mejor precisión"), lambda v: f"{100 * v:.0f} %",
          keep=lambda x: (x["weapon_damage"] or 0) >= 300)  # otherwise 1 lucky shot = 100 %
-    best("total_traveled_cm", "Plus longue distance", "Longest distance", lambda v: f"{v / 100000:.1f} km")
+    best("total_traveled_cm", ("Longest distance", "Plus longue distance", "Mayor distancia"), lambda v: f"{v / 100000:.1f} km")
     streak = best_s = 0
     end = None
     for x in sorted(r, key=lambda x: x["date"] or ""):
@@ -306,7 +313,9 @@ def records(r):
         if streak > best_s:
             best_s, end = streak, x["date"]
     if best_s:
-        out.append(("Top 1 d'affilée", "Wins in a row", best_s, f"jusqu'au {fmt_day(end)}", f"until {fmt_day(end)}"))
+        d = fmt_day(end)
+        out.append((("Wins in a row", "Top 1 d'affilée", "Victorias seguidas"), best_s,
+                    (f"until {d}", f"jusqu'au {d}", f"hasta el {d}")))
     days = {}
     for x in r:
         if x["date"]:
@@ -315,11 +324,11 @@ def records(r):
             d[1] += x["chests"] or 0
             d[2] += 1
     if days:
-        for i, fr, en in ((0, "Plus de Top 1 en 1 jour", "Most wins in 1 day"),
-                          (1, "Plus de coffres en 1 jour", "Most chests in 1 day"),
-                          (2, "Plus de games en 1 jour", "Most games in 1 day")):
+        for i, labels in ((0, ("Most wins in 1 day", "Plus de Top 1 en 1 jour", "Más victorias en 1 día")),
+                          (1, ("Most chests in 1 day", "Plus de coffres en 1 jour", "Más cofres en 1 día")),
+                          (2, ("Most games in 1 day", "Plus de games en 1 jour", "Más partidas en 1 día"))):
             day, v = max(days.items(), key=lambda kv: kv[1][i])
-            out.append((fr, en, v[i], fmt_day(day), fmt_day(day)))
+            out.append((labels, v[i], (fmt_day(day),) * 3))
     return out
 
 
@@ -329,49 +338,50 @@ def write_dashboard(con, cfg):
     lang = cfg.get("lang", "en")
     name = html.escape(cfg.get("player") or "")
 
-    def L(fr, en):  # both languages in the page, CSS shows the chosen one
-        return f"<span class=fr>{html.escape(str(fr))}</span><span class=en>{html.escape(str(en))}</span>"
+    def L(en, fr, es):  # all languages in the page, CSS shows the chosen one
+        return "".join(f"<span class={c}>{html.escape(str(t))}</span>" for c, t in (("en", en), ("fr", fr), ("es", es)))
 
     if not t:
-        body = f"<p class=empty>{L('Aucune partie pour l’instant : joue une game, elle apparaîtra ici à la fin.', 'No games yet: play a game, it will show up here when it ends.')}</p>"
+        body = f"<p class=empty>{L('No games yet: play a game, it will show up here when it ends.', 'Aucune partie pour l’instant : joue une game, elle apparaîtra ici à la fin.', 'Todavía no hay partidas: juega una y aparecerá aquí al terminar.')}</p>"
     else:
-        cards = "".join(f"<div class=c><b>{html.escape(str(t[k]))}</b><span>{L(*LABELS[k])}</span></div>" for k in LABELS)
-        recs = "".join(f"<div class=r><b>{html.escape(str(v))}</b><span class=l>{L(fr, en)}</span><span class=d>{L(dfr, den)}</span></div>"
-                       for fr, en, v, dfr, den in records(r))
+        cards = "".join(f"<div class=c><b>{html.escape(str(t[k]))}</b><span class=k>{L(*LABELS[k])}</span></div>" for k in LABELS)
+        recs = "".join(f"<div class=r><b>{html.escape(str(v))}</b><span class=l>{L(*labels)}</span><span class=d>{L(*details)}</span></div>"
+                       for labels, v, details in records(r))
         trs = "".join(
             f"<tr class='{'win' if x['placement'] == 1 else ''}'><td>{html.escape(str(x['date']))}</td><td class=ch>{x['chests'] if x['chests'] is not None else '?'}</td>"
             f"<td>{x['placement'] or '-'}</td><td>{x['eliminations'] or 0}</td><td>{x['assists'] or 0}</td><td>{x['weapon_damage'] or 0}</td>"
             f"<td>{x['damage_taken'] or 0}</td><td>{100 * (x['accuracy'] or 0):.0f} %</td>"
             f"<td>{(x['duration_s'] or 0) // 60} min</td><td>{(x['total_traveled_cm'] or 0) / 100000:.1f} km</td></tr>" for x in r)
-        heads = "".join(f"<th>{L(fr, en)}</th>" for fr, en in (
-            ("Date", "Date"), ("Coffres", "Chests"), ("Top", "Place"), ("Kills", "Kills"), ("Assists", "Assists"),
-            ("Dégâts", "Damage"), ("Dégâts subis", "Damage taken"), ("Précision", "Accuracy"),
-            ("Durée", "Duration"), ("Distance", "Distance")))
-        body = (f"<div class=big><b>{t['chests']}</b><span>{L('coffres ouverts au total', 'chests opened in total')}</span></div>"
-                f"<div class=g>{cards}</div><h2>{L('Records', 'Personal bests')}</h2><div class=g>{recs}</div>"
-                f"<h2>{L('Toutes les games', 'All games')}</h2><div style='overflow-x:auto'><table><tr>{heads}</tr>{trs}</table></div>")
+        heads = "".join(f"<th>{L(*h)}</th>" for h in (
+            ("Date", "Date", "Fecha"), ("Chests", "Coffres", "Cofres"), ("Place", "Top", "Puesto"),
+            ("Kills", "Kills", "Elim."), ("Assists", "Assists", "Asist."), ("Damage", "Dégâts", "Daño"),
+            ("Damage taken", "Dégâts subis", "Daño recibido"), ("Accuracy", "Précision", "Precisión"),
+            ("Duration", "Durée", "Duración"), ("Distance", "Distance", "Distancia")))
+        body = (f"<div class=big><b>{t['chests']}</b><span>{L('chests opened in total', 'coffres ouverts au total', 'cofres abiertos en total')}</span></div>"
+                f"<div class=g>{cards}</div><h2>{L('Personal bests', 'Records', 'Récords')}</h2><div class=g>{recs}</div>"
+                f"<h2>{L('All games', 'Toutes les games', 'Todas las partidas')}</h2><div style='overflow-x:auto'><table><tr>{heads}</tr>{trs}</table></div>")
     DASHBOARD.write_text(f"""<!doctype html><html lang={lang}><meta charset=utf-8><title>Fortnite Chest Tracker</title>
 <meta name=viewport content="width=device-width,initial-scale=1"><meta http-equiv=refresh content=60>
 <style>
 body{{background:#0d0f14;color:#e8e8ee;font:15px system-ui,sans-serif;margin:0;padding:24px}}
-html[lang=fr] .en,html[lang=en] .fr{{display:none}}
+.en,.fr,.es{{display:none}} html[lang=en] .en,html[lang=fr] .fr,html[lang=es] .es{{display:inline}}
 .top{{display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;gap:12px;flex-wrap:wrap}}
 h1{{font-size:22px;margin:0}} h2{{font-size:16px;color:#f5c542;margin:0 0 10px;font-weight:600}}
 .lang button{{background:#181b24;color:#8a8fa3;border:1px solid #2a2f3e;border-radius:8px;padding:6px 12px;font:600 13px system-ui;cursor:pointer;margin-left:6px}}
-html[lang=fr] #b-fr,html[lang=en] #b-en{{background:#f5c542;color:#0d0f14;border-color:#f5c542}}
+html[lang=fr] #b-fr,html[lang=en] #b-en,html[lang=es] #b-es{{background:#f5c542;color:#0d0f14;border-color:#f5c542}}
 .g{{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px}}
 .c{{background:#181b24;border-radius:10px;padding:12px 16px;min-width:110px}} .c b{{display:block;font-size:22px}} .c span{{color:#8a8fa3;font-size:12px}}
 .r{{background:linear-gradient(160deg,#211d10,#181b24 60%);border:1px solid #3a3218;border-radius:10px;padding:12px 16px;min-width:150px}}
-.r b{{display:block;font-size:24px;color:#f5c542}} .r .l{{display:block;font-size:13px;margin:2px 0}} .r .d{{color:#6b7085;font-size:11px}}
+.r b{{display:block;font-size:24px;color:#f5c542}} .r .l{{display:block!important;font-size:13px;margin:2px 0}} .r .d{{color:#6b7085;font-size:11px}}
 table{{border-collapse:collapse;width:100%}} td,th{{padding:7px 10px;border-bottom:1px solid #222634;text-align:left;white-space:nowrap}}
 th{{color:#8a8fa3;font-weight:500}} td.ch{{color:#f5c542;font-weight:700}} tr.win td{{color:#f5c542;font-weight:600}}
 .big{{margin:0 0 18px}} .big b{{font-size:64px;color:#f5c542;display:block;line-height:1}} .big span{{color:#8a8fa3}}
 .empty{{color:#8a8fa3;font-size:17px;margin-top:40px}} .foot{{color:#555;font-size:12px}} a{{color:#8a8fa3}}
 </style>
-<div class=top><h1>{L('Stats Fortnite', 'Fortnite Stats')}{' — ' + name if name else ''}</h1>
-<div class=lang><button id=b-fr onclick="setLang('fr')">FR</button><button id=b-en onclick="setLang('en')">EN</button></div></div>
+<div class=top><h1>{L('Fortnite Stats', 'Stats Fortnite', 'Estadísticas Fortnite')}{' — ' + name if name else ''}</h1>
+<div class=lang><button id=b-en onclick="setLang('en')">EN</button><button id=b-fr onclick="setLang('fr')">FR</button><button id=b-es onclick="setLang('es')">ES</button></div></div>
 {body}
-<p class=foot>{L('Mis à jour le', 'Updated on')} {datetime.now():%d/%m/%Y %H:%M} · Fortnite Chest Tracker v{VERSION}</p>
+<p class=foot>{L('Updated on', 'Mis à jour le', 'Actualizado el')} {datetime.now():%d/%m/%Y %H:%M} · Fortnite Chest Tracker v{VERSION}</p>
 <script>
 function setLang(l){{document.documentElement.lang=l;try{{localStorage.setItem('lang',l)}}catch(e){{}}}}
 try{{var l=localStorage.getItem('lang');if(l)document.documentElement.lang=l}}catch(e){{}}

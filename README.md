@@ -5,7 +5,7 @@
 <p align="center">Counts every chest you open (and break) in Fortnite, game after game, from your replays.<br>
 Compte tous les coffres que tu ouvres (et casses) sur Fortnite, game après game, grâce à tes replays.</p>
 
-<p align="center"><a href="#english">English</a> · <a href="#français">Français</a></p>
+<p align="center"><a href="#english">English</a> · <a href="#français">Français</a> · Español: la app y el panel están en español (elígelo en la configuración).</p>
 
 ---
 
@@ -17,6 +17,7 @@ Compte tous les coffres que tu ouvres (et casses) sur Fortnite, game après game
   **personal bests** (most chests / kills / damage in one game, wins in a row, best day…) and the list of all your games.
 - Warns you (Windows notification) if **replay recording is turned off** in Fortnite.
 - Can **start with Windows**, so you never miss a game.
+- Available in **English, French and Spanish** (English by default, change it in the setup or with the EN / FR / ES buttons).
 - 100 % local: no account, no login, nothing is sent anywhere. It only **reads** your replays.
 
 ### Install (2 minutes)
@@ -66,6 +67,7 @@ Run `build.bat` → `build\FortniteChestTracker-vX.Y.Z.zip`.
   **records** (plus de coffres / kills / dégâts en une game, Top 1 d'affilée, meilleure journée…) et la liste de toutes tes games.
 - Te prévient (notification Windows) si **l'enregistrement des replays est désactivé** dans Fortnite.
 - Peut **se lancer au démarrage de Windows** pour ne rater aucune game.
+- Disponible en **anglais, français et espagnol** (anglais par défaut, à changer dans l'assistant ou avec les boutons EN / FR / ES).
 - 100 % local : pas de compte, pas de connexion, rien n'est envoyé nulle part. Il **lit** seulement tes replays.
 
 ### Installation (2 minutes)

@@ -3,7 +3,7 @@ rem Builds the release zip: build\FortniteChestTracker-vX.Y.Z.zip
 rem Needs: .NET 10 SDK, Python 3.12 + "pip install pyinstaller pillow"
 setlocal
 cd /d "%~dp0"
-set VERSION=1.0.0
+set VERSION=1.1.0
 
 echo [1/3] ChestCounter.exe (replay reader, .NET single file)
 rem no debug info / no local paths in the binaries (applies to the vendor projects too)

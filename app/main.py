@@ -13,61 +13,82 @@ import tracker as T
 BG, PANEL, FG, MUTED, GOLD, RED, GREEN = "#0d0f14", "#181b24", "#e8e8ee", "#8a8fa3", "#f5c542", "#ff6b6b", "#4cd97b"
 FONT = "Segoe UI"
 
-S = {  # UI texts (fr, en)
-    "welcome": ("Bienvenue !", "Welcome!"),
-    "intro": ("Ce tool lit tes replays Fortnite après chaque game et compte les coffres que tu ouvres "
-              "(et ceux que tu casses). Tout reste sur ton PC.",
-              "This tool reads your Fortnite replays after each game and counts the chests you open "
-              "(and the ones you break). Everything stays on your PC."),
-    "name": ("Ton pseudo Fortnite (exactement comme en jeu)", "Your Fortnite name (exactly as in game)"),
-    "name_hint": ("Sert à te retrouver dans les replays et s'affiche sur ton tableau.",
-                  "Used to find you in replays and shown on your dashboard."),
-    "lang": ("Langue", "Language"),
-    "next": ("Suivant  →", "Next  →"),
-    "back": ("←  Retour", "←  Back"),
-    "need_name": ("Entre ton pseudo Fortnite.", "Enter your Fortnite name."),
-    "step2": ("Les replays sont-ils activés ?", "Are replays turned on?"),
-    "ok": ("✔  Les replays sont activés", "✔  Replays are turned on"),
-    "ok_d": ("Dernier replay : {d}. Tes games seront comptées.", "Last replay: {d}. Your games will be counted."),
-    "off": ("✖  Les replays sont désactivés", "✖  Replays are turned off"),
-    "off_d": ("Sans replays, le tool ne peut rien compter. Active-les (voir ci-dessous) puis lance une game.",
-              "Without replays the tool can't count anything. Turn them on (see below), then play a game."),
-    "unk": ("?  Impossible de vérifier pour l'instant", "?  Can't check yet"),
-    "unk_d": ("Aucun replay trouvé sur ce PC. Vérifie le réglage ci-dessous et lance une game : "
-              "le tool te préviendra s'ils sont coupés.",
-              "No replay found on this PC. Check the setting below and play a game: "
-              "the tool will warn you if they are off."),
-    "how": ("Dans Fortnite : Réglages (roue dentée) → onglet Jeu → section Replays\n"
-            "→ « Enregistrer les replays » : ACTIVÉ\n→ « Enregistrer les replays d'équipes nombreuses » : ACTIVÉ (pour les squads)",
-            "In Fortnite: Settings (gear) → Game tab → Replays section\n"
-            "→ \"Record Replays\": ON\n→ \"Record Large Team Replays\": ON (for squads)"),
-    "recheck": ("Revérifier", "Check again"),
-    "step3": ("Dernière étape", "Last step"),
-    "startup": ("Lancer le tool au démarrage de Windows", "Start the tool with Windows"),
-    "import": ("Compter aussi les replays déjà sur mon PC", "Also count the replays already on my PC"),
-    "import_d": ("Fortnite ne garde que tes dernières games (les plus anciennes sont effacées).",
-                 "Fortnite only keeps your latest games (older ones are deleted)."),
-    "finish": ("Terminer", "Finish"),
-    "total": ("coffres ouverts au total", "chests opened in total"),
-    "last": ("Dernière game : {c} coffres · {top} · {k} kills", "Last game: {c} chests · {top} · {k} kills"),
-    "none": ("Aucune game pour l'instant : joue, elle apparaîtra ici à la fin.", "No games yet: play one, it will show up here when it ends."),
-    "st_ok": ("●  Suivi actif : chaque game est comptée ~20 s après la fin", "●  Tracking: each game is counted ~20 s after it ends"),
-    "st_off": ("●  Replays désactivés dans Fortnite : tes games ne sont pas comptées !", "●  Replays are off in Fortnite: your games are not counted!"),
-    "st_unk": ("●  Suivi actif, en attente de ta première game", "●  Tracking, waiting for your first game"),
-    "open": ("Ouvrir mon tableau", "Open my dashboard"),
-    "settings": ("Réglages", "Settings"),
-    "quit": ("Quitter", "Quit"),
-    "quit_q": ("Le suivi va s'arrêter et tes prochaines games ne seront plus comptées. Quitter ?",
-               "Tracking will stop and your next games won't be counted. Quit?"),
-    "importing": ("Import des replays existants…", "Importing existing replays…"),
-    "already": ("Fortnite Chest Tracker est déjà ouvert.", "Fortnite Chest Tracker is already running."),
+LANGS = (("en", "English"), ("fr", "Français"), ("es", "Español"))
+
+S = {  # UI texts per language
+    "welcome": {"en": "Welcome!", "fr": "Bienvenue !", "es": "¡Bienvenido!"},
+    "intro": {"en": "This tool reads your Fortnite replays after each game and counts the chests you open "
+                    "(and the ones you break). Everything stays on your PC.",
+              "fr": "Ce tool lit tes replays Fortnite après chaque game et compte les coffres que tu ouvres "
+                    "(et ceux que tu casses). Tout reste sur ton PC.",
+              "es": "Esta herramienta lee tus repeticiones de Fortnite después de cada partida y cuenta los cofres que abres "
+                    "(y los que rompes). Todo se queda en tu PC."},
+    "name": {"en": "Your Fortnite name (exactly as in game)", "fr": "Ton pseudo Fortnite (exactement comme en jeu)",
+             "es": "Tu nombre de Fortnite (exactamente como en el juego)"},
+    "name_hint": {"en": "Used to find you in replays and shown on your dashboard.",
+                  "fr": "Sert à te retrouver dans les replays et s'affiche sur ton tableau.",
+                  "es": "Sirve para encontrarte en las repeticiones y aparece en tu panel."},
+    "lang": {"en": "Language", "fr": "Langue", "es": "Idioma"},
+    "next": {"en": "Next  →", "fr": "Suivant  →", "es": "Siguiente  →"},
+    "back": {"en": "←  Back", "fr": "←  Retour", "es": "←  Atrás"},
+    "need_name": {"en": "Enter your Fortnite name.", "fr": "Entre ton pseudo Fortnite.", "es": "Escribe tu nombre de Fortnite."},
+    "step2": {"en": "Are replays turned on?", "fr": "Les replays sont-ils activés ?", "es": "¿Están activadas las repeticiones?"},
+    "ok": {"en": "✔  Replays are turned on", "fr": "✔  Les replays sont activés", "es": "✔  Las repeticiones están activadas"},
+    "ok_d": {"en": "Last replay: {d}. Your games will be counted.", "fr": "Dernier replay : {d}. Tes games seront comptées.",
+             "es": "Última repetición: {d}. Tus partidas se contarán."},
+    "off": {"en": "✖  Replays are turned off", "fr": "✖  Les replays sont désactivés", "es": "✖  Las repeticiones están desactivadas"},
+    "off_d": {"en": "Without replays the tool can't count anything. Turn them on (see below), then play a game.",
+              "fr": "Sans replays, le tool ne peut rien compter. Active-les (voir ci-dessous) puis lance une game.",
+              "es": "Sin repeticiones la herramienta no puede contar nada. Actívalas (ver abajo) y juega una partida."},
+    "unk": {"en": "?  Can't check yet", "fr": "?  Impossible de vérifier pour l'instant", "es": "?  Todavía no se puede comprobar"},
+    "unk_d": {"en": "No replay found on this PC. Check the setting below and play a game: the tool will warn you if they are off.",
+              "fr": "Aucun replay trouvé sur ce PC. Vérifie le réglage ci-dessous et lance une game : le tool te préviendra s'ils sont coupés.",
+              "es": "No se encontró ninguna repetición en este PC. Revisa el ajuste de abajo y juega una partida: la herramienta te avisará si están desactivadas."},
+    "how": {"en": "In Fortnite: Settings (gear) → Game tab → Replays section\n"
+                  "→ \"Record Replays\": ON\n→ \"Record Large Team Replays\": ON (for squads)",
+            "fr": "Dans Fortnite : Réglages (roue dentée) → onglet Jeu → section Replays\n"
+                  "→ « Enregistrer les replays » : ACTIVÉ\n→ « Enregistrer les replays d'équipes nombreuses » : ACTIVÉ (pour les squads)",
+            "es": "En Fortnite: Configuración (engranaje) → pestaña Juego → sección Repeticiones\n"
+                  "→ \"Grabar repeticiones\": ACTIVADO\n→ \"Grabar repeticiones de equipos grandes\": ACTIVADO (para escuadrones)"},
+    "recheck": {"en": "Check again", "fr": "Revérifier", "es": "Volver a comprobar"},
+    "step3": {"en": "Last step", "fr": "Dernière étape", "es": "Último paso"},
+    "startup": {"en": "Start the tool with Windows", "fr": "Lancer le tool au démarrage de Windows",
+                "es": "Iniciar la herramienta con Windows"},
+    "import": {"en": "Also count the replays already on my PC", "fr": "Compter aussi les replays déjà sur mon PC",
+               "es": "Contar también las repeticiones que ya están en mi PC"},
+    "import_d": {"en": "Fortnite only keeps your latest games (older ones are deleted).",
+                 "fr": "Fortnite ne garde que tes dernières games (les plus anciennes sont effacées).",
+                 "es": "Fortnite solo guarda tus últimas partidas (las más antiguas se borran)."},
+    "finish": {"en": "Finish", "fr": "Terminer", "es": "Terminar"},
+    "total": {"en": "chests opened in total", "fr": "coffres ouverts au total", "es": "cofres abiertos en total"},
+    "last": {"en": "Last game: {c} chests · {top} · {k} kills", "fr": "Dernière game : {c} coffres · {top} · {k} kills",
+             "es": "Última partida: {c} cofres · {top} · {k} eliminaciones"},
+    "none": {"en": "No games yet: play one, it will show up here when it ends.",
+             "fr": "Aucune game pour l'instant : joue, elle apparaîtra ici à la fin.",
+             "es": "Todavía no hay partidas: juega una y aparecerá aquí al terminar."},
+    "st_ok": {"en": "●  Tracking: each game is counted ~20 s after it ends",
+              "fr": "●  Suivi actif : chaque game est comptée ~20 s après la fin",
+              "es": "●  Seguimiento activo: cada partida se cuenta ~20 s después de terminar"},
+    "st_off": {"en": "●  Replays are off in Fortnite: your games are not counted!",
+               "fr": "●  Replays désactivés dans Fortnite : tes games ne sont pas comptées !",
+               "es": "●  Las repeticiones están desactivadas en Fortnite: ¡tus partidas no se cuentan!"},
+    "st_unk": {"en": "●  Tracking, waiting for your first game", "fr": "●  Suivi actif, en attente de ta première game",
+               "es": "●  Seguimiento activo, esperando tu primera partida"},
+    "open": {"en": "Open my dashboard", "fr": "Ouvrir mon tableau", "es": "Abrir mi panel"},
+    "settings": {"en": "Settings", "fr": "Réglages", "es": "Ajustes"},
+    "quit": {"en": "Quit", "fr": "Quitter", "es": "Salir"},
+    "quit_q": {"en": "Tracking will stop and your next games won't be counted. Quit?",
+               "fr": "Le suivi va s'arrêter et tes prochaines games ne seront plus comptées. Quitter ?",
+               "es": "El seguimiento se detendrá y tus próximas partidas no se contarán. ¿Salir?"},
+    "already": {"en": "Fortnite Chest Tracker is already running.", "fr": "Fortnite Chest Tracker est déjà ouvert.",
+                "es": "Fortnite Chest Tracker ya está abierto."},
 }
 
 
 class App:
     def __init__(self, minimized=False):
         self.cfg = T.load_config()
-        self.lang = (self.cfg or {}).get("lang") or T.system_lang()
+        self.lang = (self.cfg or {}).get("lang") or "en"  # English by default
         self.root = tk.Tk()
         self.root.title(T.APP_NAME)
         self.root.configure(bg=BG)
@@ -88,8 +109,8 @@ class App:
             self.wizard_names()
 
     def t(self, key, **kw):
-        fr, en = S[key]
-        return (fr if self.lang == "fr" else en).format(**kw)
+        texts = S[key]
+        return texts.get(self.lang, texts["en"]).format(**kw)
 
     # ---------------------------------------------------------- helpers
     def clear(self):
@@ -134,7 +155,7 @@ class App:
         row = tk.Frame(f, bg=BG)
         row.pack(fill="x")
         self.lang_var = tk.StringVar(value=self.lang)
-        for code, txt in (("fr", "Français"), ("en", "English")):
+        for code, txt in LANGS:
             tk.Radiobutton(row, text=txt, value=code, variable=self.lang_var, command=self.change_lang,
                            bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG, activeforeground=GOLD,
                            font=(FONT, 10)).pack(side="left", padx=(0, 16))
@@ -304,7 +325,7 @@ if __name__ == "__main__":
     except Exception:
         pass
     if not single_instance():
-        lang = (T.load_config() or {}).get("lang") or T.system_lang()
-        messagebox.showinfo(T.APP_NAME, S["already"][0 if lang == "fr" else 1])
+        lang = (T.load_config() or {}).get("lang") or "en"
+        messagebox.showinfo(T.APP_NAME, S["already"].get(lang, S["already"]["en"]))
         sys.exit(0)
     App(minimized="--minimized" in sys.argv).root.mainloop()
