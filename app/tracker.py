@@ -18,7 +18,7 @@ from pathlib import Path
 from replay_reader import summarize
 
 APP_NAME = "Fortnite Chest Tracker"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "FortniteChestTracker"
 CONFIG_PATH = DATA_DIR / "config.json"
 DB_PATH = DATA_DIR / "games.db"
@@ -265,7 +265,8 @@ def fmt_int(n):
     return f"{n:,}".replace(",", " ")
 
 
-def totals(r):
+def totals(r, start=0):
+    """start = chests opened before using the tool (entered at setup), added to the chest total only."""
     n = len(r)
     if not n:
         return None
@@ -274,7 +275,7 @@ def totals(r):
     kills = sum(x["eliminations"] or 0 for x in r)
     wins = sum(1 for x in r if x["placement"] == 1)
     return {
-        "chests": fmt_int(chests), "chests_pg": round(chests / n, 1), "games": n, "wins": wins,
+        "chests": fmt_int(chests + (start or 0)), "chests_pg": round(chests / n, 1), "games": n, "wins": wins,
         "top10": sum(1 for x in r if x["placement"] and x["placement"] <= 10), "kills": kills,
         "kills_pg": round(kills / n, 2), "kd": round(kills / ((n - wins) or 1), 2),
         "dmg_pg": round(sum(x["weapon_damage"] or 0 for x in r) / n),
@@ -334,15 +335,20 @@ def records(r):
 
 def write_dashboard(con, cfg):
     r = rows(con)
-    t = totals(r)
+    start = int(cfg.get("start_chests") or 0)
+    t = totals(r, start)
     lang = cfg.get("lang", "en")
     name = html.escape(cfg.get("player") or "")
 
     def L(en, fr, es):  # all languages in the page, CSS shows the chosen one
         return "".join(f"<span class={c}>{html.escape(str(t))}</span>" for c, t in (("en", en), ("fr", fr), ("es", es)))
 
+    sub = (L(f"chests opened in total (incl. {fmt_int(start)} before tracking)",
+               f"coffres ouverts au total (dont {fmt_int(start)} avant le suivi)",
+               f"cofres abiertos en total (incl. {fmt_int(start)} antes del seguimiento)") if start
+           else L('chests opened in total', 'coffres ouverts au total', 'cofres abiertos en total'))
     if not t:
-        body = f"<p class=empty>{L('No games yet: play a game, it will show up here when it ends.', 'Aucune partie pour l’instant : joue une game, elle apparaîtra ici à la fin.', 'Todavía no hay partidas: juega una y aparecerá aquí al terminar.')}</p>"
+        body = (f"<div class=big><b>{fmt_int(start)}</b><span>{sub}</span></div>" if start else "") + f"<p class=empty>{L('No games yet: play a game, it will show up here when it ends.', 'Aucune partie pour l’instant : joue une game, elle apparaîtra ici à la fin.', 'Todavía no hay partidas: juega una y aparecerá aquí al terminar.')}</p>"
     else:
         cards = "".join(f"<div class=c><b>{html.escape(str(t[k]))}</b><span class=k>{L(*LABELS[k])}</span></div>" for k in LABELS)
         recs = "".join(f"<div class=r><b>{html.escape(str(v))}</b><span class=l>{L(*labels)}</span><span class=d>{L(*details)}</span></div>"
@@ -357,7 +363,7 @@ def write_dashboard(con, cfg):
             ("Kills", "Kills", "Elim."), ("Assists", "Assists", "Asist."), ("Damage", "Dégâts", "Daño"),
             ("Damage taken", "Dégâts subis", "Daño recibido"), ("Accuracy", "Précision", "Precisión"),
             ("Duration", "Durée", "Duración"), ("Distance", "Distance", "Distancia")))
-        body = (f"<div class=big><b>{t['chests']}</b><span>{L('chests opened in total', 'coffres ouverts au total', 'cofres abiertos en total')}</span></div>"
+        body = (f"<div class=big><b>{t['chests']}</b><span>{sub}</span></div>"
                 f"<div class=g>{cards}</div><h2>{L('Personal bests', 'Records', 'Récords')}</h2><div class=g>{recs}</div>"
                 f"<h2>{L('All games', 'Toutes les games', 'Todas las partidas')}</h2><div style='overflow-x:auto'><table><tr>{heads}</tr>{trs}</table></div>")
     DASHBOARD.write_text(f"""<!doctype html><html lang={lang}><meta charset=utf-8><title>Fortnite Chest Tracker</title>

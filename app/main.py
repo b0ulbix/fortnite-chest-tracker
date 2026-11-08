@@ -59,6 +59,14 @@ S = {  # UI texts per language
     "import_d": {"en": "Fortnite only keeps your latest games (older ones are deleted).",
                  "fr": "Fortnite ne garde que tes dernières games (les plus anciennes sont effacées).",
                  "es": "Fortnite solo guarda tus últimas partidas (las más antiguas se borran)."},
+    "start": {"en": "Chests you had already opened before (optional)", "fr": "Coffres déjà ouverts avant le tool (facultatif)",
+              "es": "Cofres que ya habías abierto antes (opcional)"},
+    "start_d": {"en": "Added to your total so it starts from where you really are. You can change it later in Settings.",
+                "fr": "Ajouté à ton total pour partir de là où tu en es vraiment. Modifiable plus tard dans Réglages.",
+                "es": "Se suma a tu total para empezar desde donde estás de verdad. Puedes cambiarlo luego en Ajustes."},
+    "need_num": {"en": "The number of chests must be a whole number (for example 1250), or leave it empty.",
+                 "fr": "Le nombre de coffres doit être un nombre entier (par exemple 1250), ou laisse vide.",
+                 "es": "El número de cofres debe ser un número entero (por ejemplo 1250), o déjalo vacío."},
     "finish": {"en": "Finish", "fr": "Terminer", "es": "Terminar"},
     "total": {"en": "chests opened in total", "fr": "coffres ouverts au total", "es": "cofres abiertos en total"},
     "last": {"en": "Last game: {c} chests · {top} · {k} kills", "fr": "Dernière game : {c} coffres · {top} · {k} kills",
@@ -175,7 +183,8 @@ class App:
             messagebox.showwarning(T.APP_NAME, self.t("need_name"))
             return
         self.new_cfg = {"player": name, "lang": self.lang,
-                        "startup": (self.cfg or {}).get("startup", False)}
+                        "startup": (self.cfg or {}).get("startup", False),
+                        "start_chests": (self.cfg or {}).get("start_chests", 0)}
         self.root.unbind("<Return>")
         self.wizard_replays()
 
@@ -205,11 +214,22 @@ class App:
             tk.Checkbutton(f, text=self.t(key), variable=var, bg=BG, fg=FG, selectcolor=PANEL, activebackground=BG,
                            activeforeground=GOLD, font=(FONT, 11), anchor="w").pack(fill="x", pady=(4, 0))
         self.label(f, self.t("import_d"), 9, MUTED, pady=(2, 0))
+        self.label(f, self.t("start"), 11, FG, True, pady=(16, 4))
+        start = self.new_cfg.get("start_chests") or ""
+        self.start_var = tk.StringVar(value=str(start))
+        tk.Entry(f, textvariable=self.start_var, font=(FONT, 13), bg=PANEL, fg=FG, insertbackground=FG,
+                 relief="flat", width=12).pack(anchor="w", ipady=5)
+        self.label(f, self.t("start_d"), 9, MUTED, pady=(4, 0))
         bar = self.footer(f)
         self.button(bar, self.t("finish"), self.finish)
         self.button(bar, self.t("back"), self.wizard_replays, primary=False, side="left")
 
     def finish(self):
+        raw = self.start_var.get().strip().replace(" ", "").replace(",", "").replace(".", "")
+        if raw and not raw.isdigit():
+            messagebox.showwarning(T.APP_NAME, self.t("need_num"))
+            return
+        self.new_cfg["start_chests"] = int(raw) if raw else 0
         self.new_cfg["startup"] = bool(self.startup_var.get())
         first_run = self.cfg is None
         if first_run:
@@ -273,8 +293,8 @@ class App:
         con = T.db()
         r = T.rows(con)
         con.close()
-        tot = T.totals(r)
-        self.total_lbl.config(text=tot["chests"] if tot else "0")
+        tot = T.totals(r, self.cfg.get("start_chests", 0))
+        self.total_lbl.config(text=tot["chests"] if tot else T.fmt_int(self.cfg.get("start_chests", 0)))
         if r:
             x = r[0]
             top = f"Top {x['placement']}" if x["placement"] else "-"

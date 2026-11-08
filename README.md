@@ -26,7 +26,8 @@ Compte tous les coffres que tu ouvres (et casses) sur Fortnite, game après game
 3. Double-click **`FortniteChestTracker.exe`**. A small setup opens:
    - **your Fortnite name** (exactly as in game),
    - **a check that replays are turned on**,
-   - options: start with Windows, count the replays already on your PC.
+   - options: start with Windows, count the replays already on your PC,
+     and **the chests you had already opened before** (optional) so your total starts from where you really are.
 4. Play. About 20 seconds after each game, your chests are added. Click **Open my dashboard** to see your stats.
 
 > **Turn on replays in Fortnite** (otherwise nothing can be counted):
@@ -76,7 +77,8 @@ Run `build.bat` → `build\FortniteChestTracker-vX.Y.Z.zip`.
 3. Double-clique sur **`FortniteChestTracker.exe`**. Un petit assistant s'ouvre :
    - **ton pseudo Fortnite** (exactement comme en jeu),
    - **une vérification que les replays sont activés**,
-   - les options : lancement au démarrage de Windows, comptage des replays déjà présents sur ton PC.
+   - les options : lancement au démarrage de Windows, comptage des replays déjà présents sur ton PC,
+     et **les coffres que tu avais déjà ouverts avant** (facultatif) pour que ton total parte de là où tu en es vraiment.
 4. Joue. Environ 20 secondes après chaque game, tes coffres sont ajoutés. Clique sur **Ouvrir mon tableau** pour voir tes stats.
 
 > **Active les replays dans Fortnite** (sinon rien ne peut être compté) :
