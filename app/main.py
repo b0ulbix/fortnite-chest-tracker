@@ -233,10 +233,12 @@ class App:
         self.new_cfg["startup"] = bool(self.startup_var.get())
         first_run = self.cfg is None
         if first_run:
+            self.new_cfg["installed_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
             # replays already on disk are ignored if the user unticked "import"
             self.new_cfg["skip_before"] = 0 if self.import_var.get() else datetime.now().timestamp()
         else:
             self.new_cfg["skip_before"] = self.cfg.get("skip_before", 0)
+            self.new_cfg["installed_at"] = self.cfg.get("installed_at")
         self.cfg = self.new_cfg
         T.save_config(self.cfg)
         try:

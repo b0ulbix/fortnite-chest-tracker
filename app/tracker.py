@@ -18,7 +18,7 @@ from pathlib import Path
 from replay_reader import summarize
 
 APP_NAME = "Fortnite Chest Tracker"
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "FortniteChestTracker"
 CONFIG_PATH = DATA_DIR / "config.json"
 DB_PATH = DATA_DIR / "games.db"
@@ -246,7 +246,7 @@ def scan(con, cfg, on_game=None):
         if on_game:
             on_game(s, line)
     if added:
-        write_dashboard(con, cfg)
+        write_dashboard(con, cfg, live_game())
     return added
 
 
@@ -333,65 +333,26 @@ def records(r):
     return out
 
 
-def write_dashboard(con, cfg):
+def live_game():
+    """Epoch start of a game in progress (a replay Fortnite is still writing), else None."""
+    if not DEMOS.exists():
+        return None
+    now = time.time()
+    for p in DEMOS.glob("*.replay"):
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        if now - st.st_mtime < 45:  # still being written
+            return st.st_ctime
+    return None
+
+
+def write_dashboard(con, cfg, live_since=None):
+    from dashboard import render
     r = rows(con)
     start = int(cfg.get("start_chests") or 0)
-    t = totals(r, start)
-    lang = cfg.get("lang", "en")
-    name = html.escape(cfg.get("player") or "")
-
-    def L(en, fr, es):  # all languages in the page, CSS shows the chosen one
-        return "".join(f"<span class={c}>{html.escape(str(t))}</span>" for c, t in (("en", en), ("fr", fr), ("es", es)))
-
-    sub = (L(f"chests opened in total (incl. {fmt_int(start)} before tracking)",
-               f"coffres ouverts au total (dont {fmt_int(start)} avant le suivi)",
-               f"cofres abiertos en total (incl. {fmt_int(start)} antes del seguimiento)") if start
-           else L('chests opened in total', 'coffres ouverts au total', 'cofres abiertos en total'))
-    if not t:
-        body = (f"<div class=big><b>{fmt_int(start)}</b><span>{sub}</span></div>" if start else "") + f"<p class=empty>{L('No games yet: play a game, it will show up here when it ends.', 'Aucune partie pour l’instant : joue une game, elle apparaîtra ici à la fin.', 'Todavía no hay partidas: juega una y aparecerá aquí al terminar.')}</p>"
-    else:
-        cards = "".join(f"<div class=c><b>{html.escape(str(t[k]))}</b><span class=k>{L(*LABELS[k])}</span></div>" for k in LABELS)
-        recs = "".join(f"<div class=r><b>{html.escape(str(v))}</b><span class=l>{L(*labels)}</span><span class=d>{L(*details)}</span></div>"
-                       for labels, v, details in records(r))
-        trs = "".join(
-            f"<tr class='{'win' if x['placement'] == 1 else ''}'><td>{html.escape(str(x['date']))}</td><td class=ch>{x['chests'] if x['chests'] is not None else '?'}</td>"
-            f"<td>{x['placement'] or '-'}</td><td>{x['eliminations'] or 0}</td><td>{x['assists'] or 0}</td><td>{x['weapon_damage'] or 0}</td>"
-            f"<td>{x['damage_taken'] or 0}</td><td>{100 * (x['accuracy'] or 0):.0f} %</td>"
-            f"<td>{(x['duration_s'] or 0) // 60} min</td><td>{(x['total_traveled_cm'] or 0) / 100000:.1f} km</td></tr>" for x in r)
-        heads = "".join(f"<th>{L(*h)}</th>" for h in (
-            ("Date", "Date", "Fecha"), ("Chests", "Coffres", "Cofres"), ("Place", "Top", "Puesto"),
-            ("Kills", "Kills", "Elim."), ("Assists", "Assists", "Asist."), ("Damage", "Dégâts", "Daño"),
-            ("Damage taken", "Dégâts subis", "Daño recibido"), ("Accuracy", "Précision", "Precisión"),
-            ("Duration", "Durée", "Duración"), ("Distance", "Distance", "Distancia")))
-        body = (f"<div class=big><b>{t['chests']}</b><span>{sub}</span></div>"
-                f"<div class=g>{cards}</div><h2>{L('Personal bests', 'Records', 'Récords')}</h2><div class=g>{recs}</div>"
-                f"<h2>{L('All games', 'Toutes les games', 'Todas las partidas')}</h2><div style='overflow-x:auto'><table><tr>{heads}</tr>{trs}</table></div>")
-    DASHBOARD.write_text(f"""<!doctype html><html lang={lang}><meta charset=utf-8><title>Fortnite Chest Tracker</title>
-<meta name=viewport content="width=device-width,initial-scale=1"><meta http-equiv=refresh content=60>
-<style>
-body{{background:#0d0f14;color:#e8e8ee;font:15px system-ui,sans-serif;margin:0;padding:24px}}
-.en,.fr,.es{{display:none}} html[lang=en] .en,html[lang=fr] .fr,html[lang=es] .es{{display:inline}}
-.top{{display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;gap:12px;flex-wrap:wrap}}
-h1{{font-size:22px;margin:0}} h2{{font-size:16px;color:#f5c542;margin:0 0 10px;font-weight:600}}
-.lang button{{background:#181b24;color:#8a8fa3;border:1px solid #2a2f3e;border-radius:8px;padding:6px 12px;font:600 13px system-ui;cursor:pointer;margin-left:6px}}
-html[lang=fr] #b-fr,html[lang=en] #b-en,html[lang=es] #b-es{{background:#f5c542;color:#0d0f14;border-color:#f5c542}}
-.g{{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px}}
-.c{{background:#181b24;border-radius:10px;padding:12px 16px;min-width:110px}} .c b{{display:block;font-size:22px}} .c span{{color:#8a8fa3;font-size:12px}}
-.r{{background:linear-gradient(160deg,#211d10,#181b24 60%);border:1px solid #3a3218;border-radius:10px;padding:12px 16px;min-width:150px}}
-.r b{{display:block;font-size:24px;color:#f5c542}} .r .l{{display:block!important;font-size:13px;margin:2px 0}} .r .d{{color:#6b7085;font-size:11px}}
-table{{border-collapse:collapse;width:100%}} td,th{{padding:7px 10px;border-bottom:1px solid #222634;text-align:left;white-space:nowrap}}
-th{{color:#8a8fa3;font-weight:500}} td.ch{{color:#f5c542;font-weight:700}} tr.win td{{color:#f5c542;font-weight:600}}
-.big{{margin:0 0 18px}} .big b{{font-size:64px;color:#f5c542;display:block;line-height:1}} .big span{{color:#8a8fa3}}
-.empty{{color:#8a8fa3;font-size:17px;margin-top:40px}} .foot{{color:#555;font-size:12px}} a{{color:#8a8fa3}}
-</style>
-<div class=top><h1>{L('Fortnite Stats', 'Stats Fortnite', 'Estadísticas Fortnite')}{' — ' + name if name else ''}</h1>
-<div class=lang><button id=b-en onclick="setLang('en')">EN</button><button id=b-fr onclick="setLang('fr')">FR</button><button id=b-es onclick="setLang('es')">ES</button></div></div>
-{body}
-<p class=foot>{L('Updated on', 'Mis à jour le', 'Actualizado el')} {datetime.now():%d/%m/%Y %H:%M} · Fortnite Chest Tracker v{VERSION}</p>
-<script>
-function setLang(l){{document.documentElement.lang=l;try{{localStorage.setItem('lang',l)}}catch(e){{}}}}
-try{{var l=localStorage.getItem('lang');if(l)document.documentElement.lang=l}}catch(e){{}}
-</script>""", encoding="utf-8")
+    DASHBOARD.write_text(render(r, totals(r, start), records(r) if r else [], cfg, VERSION, live_since), encoding="utf-8")
 
 
 # ---------------------------------------------------------------- background watcher
@@ -422,11 +383,16 @@ class Tracker(threading.Thread):
     def run(self):
         con = db()
         log(tr("watching", self.cfg.get("lang", "en"), path=DEMOS))
-        write_dashboard(con, self.cfg)
+        live = live_game()
+        write_dashboard(con, self.cfg, live)
         while not self.stop_event.is_set():
             try:
-                scan(con, self.cfg, self.on_game)
+                added = scan(con, self.cfg, self.on_game)
                 self.check_replays()
+                now_live = live_game()
+                if added or bool(now_live) != bool(live):  # "game in progress" banner on / off
+                    live = now_live
+                    write_dashboard(con, self.cfg, live)
             except Exception as e:
                 log(f"Error: {e}")
-            self.stop_event.wait(CHECK_EVERY_S)
+            self.stop_event.wait(10 if live else CHECK_EVERY_S)

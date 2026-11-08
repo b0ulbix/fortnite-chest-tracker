@@ -13,8 +13,9 @@ Compte tous les coffres que tu ouvres (et casses) sur Fortnite, game après game
 
 ### What it does
 - After each game, reads the replay Fortnite saves on your PC and counts **the chests you opened or broke**.
-- Keeps a **local stats page** (`dashboard.html`): total chests, wins, kills, K/D, damage, accuracy, time played,
-  **personal bests** (most chests / kills / damage in one game, wins in a row, best day…) and the list of all your games.
+- Keeps a **local stats page** (`dashboard.html`): total chests (opened / broken), last game, wins, kills, K/D, damage, accuracy,
+  time played, **charts** (chests, total, kills and placement per game), **personal bests** and the list of all your games.
+- Shows a **"game in progress"** banner with a timer while you play.
 - Warns you (Windows notification) if **replay recording is turned off** in Fortnite.
 - Can **start with Windows**, so you never miss a game.
 - Available in **English, French and Spanish** (English by default, change it in the setup or with the EN / FR / ES buttons).
@@ -64,8 +65,9 @@ Run `build.bat` → `build\FortniteChestTracker-vX.Y.Z.zip`.
 
 ### Ce que ça fait
 - Après chaque game, lit le replay que Fortnite enregistre sur ton PC et compte **les coffres que tu as ouverts ou cassés**.
-- Tient à jour une **page de stats en local** (`dashboard.html`) : total de coffres, Top 1, kills, K/D, dégâts, précision, temps de jeu,
-  **records** (plus de coffres / kills / dégâts en une game, Top 1 d'affilée, meilleure journée…) et la liste de toutes tes games.
+- Tient à jour une **page de stats en local** (`dashboard.html`) : total de coffres (ouverts / cassés), dernière game, Top 1, kills, K/D,
+  dégâts, précision, temps de jeu, **graphiques** (coffres, total, kills et classement par game), **records** et la liste de toutes tes games.
+- Affiche un bandeau **« partie en cours »** avec un chrono pendant que tu joues.
 - Te prévient (notification Windows) si **l'enregistrement des replays est désactivé** dans Fortnite.
 - Peut **se lancer au démarrage de Windows** pour ne rater aucune game.
 - Disponible en **anglais, français et espagnol** (anglais par défaut, à changer dans l'assistant ou avec les boutons EN / FR / ES).
