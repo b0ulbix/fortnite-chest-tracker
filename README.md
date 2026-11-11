@@ -5,6 +5,15 @@
 <p align="center">Counts every chest you open (and break) in Fortnite, game after game, from your replays.<br>
 Compte tous les coffres que tu ouvres (et casses) sur Fortnite, game après game, grâce à tes replays.</p>
 
+<p align="center">
+  <a href="https://github.com/b0ulbix/fortnite-chest-tracker/releases/download/v1.3.0/FortniteChestTracker-v1.3.0.zip"><img src="https://img.shields.io/badge/DOWNLOAD%20%2F%20T%C3%89L%C3%89CHARGER-v1.3.0%20(Windows)-2ea44f?style=for-the-badge&logo=windows&logoColor=white" alt="Download / Télécharger v1.3.0 (Windows)"></a>
+</p>
+
+<p align="center"><b>⚠️ The green "Code" button does NOT contain the app: use the download button above.</b><br>
+<b>⚠️ Le bouton vert « Code » ne contient PAS l'appli : utilise le bouton de téléchargement ci-dessus.</b><br>
+Unzip → open the <code>FortniteChestTracker</code> folder → double-click <code>FortniteChestTracker.exe</code>.<br>
+Dézippe → ouvre le dossier <code>FortniteChestTracker</code> → double-clique sur <code>FortniteChestTracker.exe</code>.</p>
+
 <p align="center"><a href="#english">English</a> · <a href="#français">Français</a> · Español: la app y el panel están en español (elígelo en la configuración).</p>
 
 ---
