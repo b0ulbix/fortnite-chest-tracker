@@ -90,7 +90,39 @@ S = {  # UI texts per language
                "es": "El seguimiento se detendrá y tus próximas partidas no se contarán. ¿Salir?"},
     "already": {"en": "Fortnite Chest Tracker is already running.", "fr": "Fortnite Chest Tracker est déjà ouvert.",
                 "es": "Fortnite Chest Tracker ya está abierto."},
+    "feat_title": {"en": "What will you use it for?", "fr": "À quoi va te servir le tool ?", "es": "¿Para qué lo vas a usar?"},
+    "feat_intro": {"en": "Pick what you need: your dashboard only shows these parts. You can change it any time in Settings.",
+                   "fr": "Choisis ce dont tu as besoin : ton tableau n'affichera que ces parties. Modifiable à tout moment dans Réglages.",
+                   "es": "Elige lo que necesitas: tu panel solo mostrará estas partes. Puedes cambiarlo cuando quieras en Ajustes."},
+    "preset_all": {"en": "Everything", "fr": "Tout", "es": "Todo"},
+    "preset_min": {"en": "Just my chests", "fr": "Juste mes coffres", "es": "Solo mis cofres"},
+    "preset_stream": {"en": "Streamer", "fr": "Streamer", "es": "Streamer"},
 }
+
+FEATURES = (  # key, title, description (en, fr, es)
+    ("core", ("Chest counter (always on)", "Compteur de coffres (toujours actif)", "Contador de cofres (siempre activo)"),
+     ("Total, last game, list of games with details.", "Total, dernière game, liste des games avec le détail.", "Total, última partida, lista de partidas con el detalle.")),
+    ("hunt", ("Treasure hunt", "Chasse au trésor", "Caza del tesoro"),
+     ("Your chances with Epic's odds, rewards collection, Treasure Hours countdown, treasures found.",
+      "Tes chances avec les cotes d'Epic, collection de récompenses, compte à rebours des Treasure Hours, trésors trouvés.",
+      "Tus probabilidades con las de Epic, colección de recompensas, cuenta atrás de las Treasure Hours, tesoros encontrados.")),
+    ("squad", ("Squad", "Escouade", "Escuadra"),
+     ("Your mates: games together, wins, what each of them finds.", "Tes mates : games ensemble, Top 1, ce que chacun trouve.",
+      "Tus compañeros: partidas juntos, victorias, lo que encuentra cada uno.")),
+    ("stats", ("Detailed stats", "Stats détaillées", "Estadísticas detalladas"),
+     ("Charts, chest types, stats by mode, best hours, personal records.", "Graphiques, types de coffres, stats par mode, meilleures heures, records.",
+      "Gráficos, tipos de cofres, estadísticas por modo, mejores horas, récords.")),
+    ("calendar", ("Chest calendar", "Calendrier des coffres", "Calendario de cofres"),
+     ("Week by week, hour by hour: how many chests and how long you played.", "Semaine par semaine, heure par heure : combien de coffres et combien de temps de jeu.",
+      "Semana a semana, hora a hora: cuántos cofres y cuánto tiempo de juego.")),
+    ("goals", ("Goals & sessions", "Objectifs et sessions", "Objetivos y sesiones"),
+     ("Next chest milestone with an estimated date, stats of your current session.", "Prochain palier de coffres avec date estimée, stats de ta session en cours.",
+      "Próximo objetivo de cofres con fecha estimada, estadísticas de tu sesión actual.")),
+    ("overlay", ("Stream overlay (OBS)", "Overlay de stream (OBS)", "Overlay para stream (OBS)"),
+     ("A live chest counter to add as a Browser source in OBS.", "Un compteur de coffres en direct à ajouter comme Source navigateur dans OBS.",
+      "Un contador de cofres en directo para añadir como Fuente de navegador en OBS.")),
+)
+PRESETS = {"all": ["hunt", "squad", "stats", "calendar", "goals", "overlay"], "min": [], "stream": ["hunt", "goals", "overlay"]}
 
 
 class App:
@@ -186,6 +218,41 @@ class App:
                         "startup": (self.cfg or {}).get("startup", False),
                         "start_chests": (self.cfg or {}).get("start_chests", 0)}
         self.root.unbind("<Return>")
+        self.new_cfg["features"] = (self.cfg or {}).get("features") or PRESETS["all"]
+        self.wizard_features()
+
+    def wizard_features(self):
+        f = self.clear()
+        li = {"en": 0, "fr": 1, "es": 2}.get(self.lang, 0)
+        self.label(f, self.t("feat_title"), 18, GOLD, True, pady=(0, 4))
+        self.label(f, self.t("feat_intro"), 10, MUTED, pady=(0, 10))
+        presets = tk.Frame(f, bg=BG)
+        presets.pack(fill="x", pady=(0, 8))
+        self.feat_vars = {}
+        for key, title, desc in FEATURES:
+            box = tk.Frame(f, bg=PANEL, padx=12, pady=7)
+            box.pack(fill="x", pady=3)
+            var = tk.BooleanVar(value=key == "core" or key in self.new_cfg["features"])
+            self.feat_vars[key] = var
+            cb = tk.Checkbutton(box, text=title[li], variable=var, bg=PANEL, fg=FG, selectcolor=BG, activebackground=PANEL,
+                                activeforeground=GOLD, font=(FONT, 11, "bold"), anchor="w")
+            cb.pack(fill="x")
+            if key == "core":
+                cb.config(state="disabled", disabledforeground=FG)
+            self.label(box, desc[li], 9, MUTED, wrap=430, pady=(0, 0))
+
+        def preset(name):
+            for k, v in self.feat_vars.items():
+                v.set(k == "core" or k in PRESETS[name])
+        for name in ("all", "min", "stream"):
+            tk.Button(presets, text=self.t("preset_" + name), command=lambda n=name: preset(n), font=(FONT, 9, "bold"), relief="flat",
+                      cursor="hand2", bg=PANEL, fg=FG, activebackground=GOLD, padx=10, pady=4, bd=0).pack(side="left", padx=(0, 6))
+        bar = self.footer(f)
+        self.button(bar, self.t("next"), self.after_features)
+        self.button(bar, self.t("back"), self.wizard_names, primary=False, side="left")
+
+    def after_features(self):
+        self.new_cfg["features"] = [k for k, v in self.feat_vars.items() if v.get() and k != "core"]
         self.wizard_replays()
 
     def wizard_replays(self):
@@ -203,7 +270,7 @@ class App:
         bar = self.footer(f)
         self.button(bar, self.t("next"), self.wizard_options)
         self.button(bar, self.t("recheck"), self.wizard_replays, primary=False)
-        self.button(bar, self.t("back"), self.wizard_names, primary=False, side="left")
+        self.button(bar, self.t("back"), self.wizard_features, primary=False, side="left")
 
     def wizard_options(self):
         f = self.clear()
@@ -232,6 +299,7 @@ class App:
         self.new_cfg["start_chests"] = int(raw) if raw else 0
         self.new_cfg["startup"] = bool(self.startup_var.get())
         first_run = self.cfg is None
+        self.new_cfg["data_version"] = (self.cfg or {}).get("data_version", 2 if first_run else 1)
         if first_run:
             self.new_cfg["installed_at"] = datetime.now().isoformat(sep=" ", timespec="seconds")
             # replays already on disk are ignored if the user unticked "import"
@@ -273,6 +341,8 @@ class App:
             self.tracker = T.Tracker(self.cfg, on_game=lambda *_: self.events.put(("game", None)),
                                      on_status=lambda s: self.events.put(("status", s)))
             self.tracker.start()
+            if not getattr(self, "_server", False):
+                self._server = T.start_server(lambda: self.cfg)
             if not getattr(self, "_polling", False):
                 self._polling = True
                 self.poll_events()
@@ -317,7 +387,7 @@ class App:
             con = T.db()
             T.write_dashboard(con, self.cfg)
             con.close()
-        webbrowser.open(T.DASHBOARD.as_uri())
+        webbrowser.open(f"http://127.0.0.1:{T.SITE_PORT}/" if getattr(self, "_server", False) else T.DASHBOARD.as_uri())
 
     def settings(self):
         self.lang = self.cfg.get("lang", self.lang)

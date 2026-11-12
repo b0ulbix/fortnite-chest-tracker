@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Unreal.Core.Contracts;
 using Unreal.Core.Exceptions;
@@ -55,6 +55,13 @@ public abstract class ReplayReader<T> where T : Replay, new()
     protected ParseMode _parseMode;
     protected bool IsDebugMode => _parseMode == ParseMode.Debug;
 
+    public static float CurrentTime;
+
+    /// <summary>Heure (s) de l'image du replay en cours de lecture (ajout fortnite-stats).</summary>
+    public float DemoTime { get; protected set; }
+
+    /// <summary>ChestCounter patch: true when the file ended in the middle of a chunk (replay still being written).</summary>
+    public bool IsPartialReplay { get; protected set; }
     protected NetGuidCache _netGuidCache;
     protected NetFieldParser _netFieldParser;
 
@@ -309,9 +316,24 @@ public abstract class ReplayReader<T> where T : Replay, new()
     {
         while (!archive.AtEnd())
         {
+            // ChestCounter patch: a replay still being recorded can end in the middle of a chunk. Stop at the
+            // last complete chunk instead of reading past the end.
+            if (false)  // fortnite-stats : BinaryReader sans Length dans cette version
+            {
+                IsPartialReplay = true;
+                return;
+            }
+
             var chunkType = archive.ReadUInt32AsEnum<ReplayChunkType>();
             var chunkSize = archive.ReadInt32();
             var offset = archive.Position;
+
+            if (false)
+            {
+                _logger?.LogInformation("Incomplete chunk ({chunkType}) at offset {offset}: replay still being written.", chunkType, offset);
+                IsPartialReplay = true;
+                return;
+            }
 
             if (chunkSize <= 0 || (long)chunkSize + offset > int.MaxValue)
             {
@@ -322,7 +344,21 @@ public abstract class ReplayReader<T> where T : Replay, new()
 
             if (chunkType == ReplayChunkType.ReplayData && _parseMode > ParseMode.EventsOnly)
             {
-                ReadReplayData(archive, chunkSize);
+                try
+                {
+                    ReadReplayData(archive, chunkSize);
+                }
+                catch (System.Security.Cryptography.CryptographicException ex) when (Replay.Info?.IsLive == true)
+                {
+                    // ChestCounter patch: replay being recorded, a data chunk that cannot be decrypted (yet): stop here.
+                    _logger?.LogWarning("Live replay: data chunk {index} at offset {offset} ({size} bytes) could not be decrypted: {message}", replayDataIndex, offset, chunkSize, ex.Message);
+                    if (Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") is { Length: > 0 })
+                    {
+                        Console.Error.WriteLine($"DBG live chunk {replayDataIndex} offset={offset} size={chunkSize} undecryptable");
+                    }
+                    IsPartialReplay = true;
+                    return;
+                }
             }
 
             else if (chunkType == ReplayChunkType.Checkpoint)
@@ -330,11 +366,33 @@ public abstract class ReplayReader<T> where T : Replay, new()
                 // Checkpoints are used for fast forwarding,
                 // we dont need it unless we want to process small parts of replay files.
                 //ReadCheckpoint(archive);
+
+                // ChestCounter patch: only the list of level placed actors destroyed so far is read (see below).
+                if (ReadCheckpointDeletedActors)
+                {
+                    try
+                    {
+                        ReadCheckpointDeletedStartupActors(archive);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning("Checkpoint at offset {offset}: deleted startup actors not read: {message}", offset, ex.Message);
+                    }
+                }
             }
 
             else if (chunkType == ReplayChunkType.Event)
             {
-                ReadEvent(archive);
+                try
+                {
+                    ReadEvent(archive);
+                }
+                catch (System.Security.Cryptography.CryptographicException ex) when (Replay.Info?.IsLive == true)
+                {
+                    // ChestCounter patch: in a replay being recorded some event chunks are not final yet
+                    // (they cannot be decrypted until the match ends). Skip them; the data chunks are fine.
+                    _logger?.LogInformation("Live replay: event chunk at offset {offset} skipped: {message}", offset, ex.Message);
+                }
             }
 
             else if (chunkType == ReplayChunkType.Header)
@@ -350,6 +408,53 @@ public abstract class ReplayReader<T> where T : Replay, new()
         }
     }
 
+
+    /// <summary>ChestCounter patch: set to read the deleted startup actors of every checkpoint (off by default).</summary>
+    protected bool ReadCheckpointDeletedActors { get; set; }
+
+    /// <summary>
+    /// ChestCounter patch: reads the head of a checkpoint only: the level placed ("startup") actors the recording
+    /// client knows as destroyed. With delta checkpoints (Fortnite) the list holds those destroyed since the previous
+    /// checkpoint. The rest of the checkpoint (a full snapshot, used to seek in the replay) is skipped.
+    /// </summary>
+    private void ReadCheckpointDeletedStartupActors(FArchive archive)
+    {
+        var id = archive.ReadFString();
+        var group = archive.ReadFString();
+        var metadata = archive.ReadFString();
+        var startTime = archive.ReadUInt32();
+        var endTime = archive.ReadUInt32();
+        var sizeInBytes = archive.ReadInt32();
+
+        using var decrypted = DecryptBuffer(archive, sizeInBytes);
+        using var binaryArchive = Decompress(decrypted);
+
+        if (binaryArchive.HasDeltaCheckpoints())
+        {
+            binaryArchive.ReadUInt32(); // checkpoint size
+        }
+        if (binaryArchive.HasLevelStreamingFixes())
+        {
+            binaryArchive.ReadInt64(); // packet offset
+        }
+        if (binaryArchive.NetworkVersion >= NetworkVersionHistory.HISTORY_MULTIPLE_LEVELS)
+        {
+            binaryArchive.ReadInt32(); // level for checkpoint
+        }
+        if (binaryArchive.NetworkVersion >= NetworkVersionHistory.HISTORY_DELETED_STARTUP_ACTORS)
+        {
+            var deleted = binaryArchive.ReadArray(binaryArchive.ReadFString);
+            if (!binaryArchive.IsError)
+            {
+                OnCheckpointDeletedStartupActors(startTime / 1000f, deleted, binaryArchive.HasDeltaCheckpoints());
+            }
+        }
+    }
+
+    /// <summary>ChestCounter patch: level placed actors destroyed, as listed by a checkpoint taken at <paramref name="time"/>.</summary>
+    protected virtual void OnCheckpointDeletedStartupActors(float time, string[] actors, bool delta)
+    {
+    }
 
     /// <summary>
     /// see https://github.com/EpicGames/UnrealEngine/blob/70bc980c6361d9a7d23f6d23ffe322a2d6ef16fb/Engine/Source/Runtime/NetworkReplayStreaming/LocalFileNetworkReplayStreaming/Private/LocalFileNetworkReplayStreaming.cpp#L318
@@ -577,7 +682,8 @@ public abstract class ReplayReader<T> where T : Replay, new()
             throw new InvalidReplayException("Completed replay is marked encrypted but has no key!");
         }
 
-        if (info.IsLive && info.IsEncrypted)
+        // ChestCounter patch: Fortnite writes the key from the start, so a replay being recorded can be read.
+        if (info.IsLive && info.IsEncrypted && info.EncryptionKey.Length == 0)
         {
             _logger?.LogError("ReadReplayInfo: Replay is marked encrypted but not yet marked as completed!");
             throw new InvalidReplayException("Replay is marked encrypted but not yet marked as completed!");
@@ -803,9 +909,6 @@ public abstract class ReplayReader<T> where T : Replay, new()
     /// <summary>
     /// see https://github.com/EpicGames/UnrealEngine/blob/70bc980c6361d9a7d23f6d23ffe322a2d6ef16fb/Engine/Source/Runtime/Engine/Private/DemoNetDriver.cpp#L2848
     /// </summary>
-    /// <summary>Heure (s) de l'image du replay en cours de lecture (ajout fortnite-stats).</summary>
-    public float DemoTime { get; protected set; }
-
     public virtual void ReadDemoFrameIntoPlaybackPackets(FArchive archive)
     {
         if (archive.NetworkVersion >= NetworkVersionHistory.HISTORY_MULTIPLE_LEVELS)
@@ -815,7 +918,8 @@ public abstract class ReplayReader<T> where T : Replay, new()
         }
 
         var timeSeconds = archive.ReadSingle();
-        DemoTime = timeSeconds;   // ajout fortnite-stats : heure de l'image en cours, continue et fiable
+        CurrentTime = timeSeconds;
+        DemoTime = timeSeconds;   // ajout fortnite-stats
         _logger?.LogDebug("ReadDemoFrameIntoPlaybackPackets at {}", timeSeconds);
 
         if (archive.NetworkVersion >= NetworkVersionHistory.HISTORY_LEVEL_STREAMING_FIXES)
@@ -972,6 +1076,7 @@ public abstract class ReplayReader<T> where T : Replay, new()
                 if (isExportingNetGUIDBunch)
                 {
                     _netGuidCache.NetGuidToPathName[netGuid.Value] = pathName.RemoveAllPathPrefixes();
+                    OnNetGuidExported(netGuid.Value, pathName);
                 }
 
                 return netGuid;
@@ -1169,8 +1274,14 @@ public abstract class ReplayReader<T> where T : Replay, new()
         {
             //ConditionalCleanUp(false, Bunch.CloseReason);
             // lots of stuff is happening here, but maybe this is enough... :)
+            // ChestCounter patch: the actor was read after the channel was cleared (always null), and the close reason was lost.
+            var closing = Channels[bunch.ChIndex];
+            if (closing != null)
+            {
+                OnChannelClosing(bunch.ChIndex, closing, bunch.CloseReason);
+            }
             Channels[bunch.ChIndex] = null;
-            OnChannelClosed(bunch.ChIndex, Channels[bunch.ChIndex]?.Actor?.ActorNetGUID);
+            OnChannelClosed(bunch.ChIndex, closing?.Actor?.ActorNetGUID);
             return true;
         }
 
@@ -1356,8 +1467,22 @@ public abstract class ReplayReader<T> where T : Replay, new()
 
         if (netFieldExportGroup is null)
         {
-            //_logger?.LogWarning($"Failed group. {bunch.ChIndex}");
+            _logger?.LogInformation("Failed group for repObject {} ({})", repObject, repObject is uint ro && _netGuidCache.TryGetPathName(ro, out var rp) ? rp : "?");
+            if (RawProbe.Sink != null)
+            {
+                var objectName = repObject is uint rpo && _netGuidCache.TryGetPathName(rpo, out var probePath) ? probePath : $"guid:{repObject}";
+                var left = archive.GetBitsLeft();
+                if (left > 0 && RawProbe.Matches("?" + objectName))
+                {
+                    RawProbe.Sink(bunch.ChIndex, "?" + objectName, bHasRepLayout ? "raw+replayout" : "raw", archive.ReadBits(left).ToArray(), left);
+                }
+            }
             return true;
+        }
+
+        if (RawProbe.Sink != null && !_netFieldParser.WillReadType(netFieldExportGroup.PathName) && RawProbe.Matches(netFieldExportGroup.PathName))
+        {
+            return ProbeReplicatorBunch(bunch, archive, netFieldExportGroup, bHasRepLayout);
         }
 
         // Handle replayout properties
@@ -1397,6 +1522,7 @@ public abstract class ReplayReader<T> where T : Replay, new()
                 if (fieldCache == null)
                 {
                     _logger?.LogInformation("ReceivedBunch: FieldCache == nullptr: {}", classNetCache.PathName);
+                    ProbeField(bunch.ChIndex, classNetCache.PathName, "?", archive);
                     continue;
                 }
 
@@ -1415,6 +1541,7 @@ public abstract class ReplayReader<T> where T : Replay, new()
 
                 if (!_netFieldParser.WillReadClassNetCache(classNetCache.PathName))
                 {
+                    ProbeField(bunch.ChIndex, classNetCache.PathName, fieldCache.Name, archive);
                     continue;
                 }
 
@@ -1442,6 +1569,14 @@ public abstract class ReplayReader<T> where T : Replay, new()
                         }
                         else
                         {
+                            // ChestCounter patch: when RawProbe asks for this field, give it the raw FastArray payload
+                            // instead of the generic NetDelta decoding (wrong for ActivatableAbilities: garbage indices).
+                            if (RawProbe.Matches(classNetCache.PathName + "." + fieldCache.Name))
+                            {
+                                ProbeField(bunch.ChIndex, classNetCache.PathName, fieldCache.Name, archive);
+                                continue;
+                            }
+
                             var group = _netGuidCache.GetNetFieldExportGroup(classNetProperty.PathName);
                             if (group is null || !_netFieldParser.WillReadType(group.PathName))
                             {
@@ -1460,6 +1595,7 @@ public abstract class ReplayReader<T> where T : Replay, new()
                 else
                 {
                     _logger?.LogDebug("Skipping struct {name} from group {pathName}", fieldCache.Name, classNetCache.PathName);
+                    ProbeField(bunch.ChIndex, classNetCache.PathName, fieldCache.Name, archive);
                 }
             }
             finally
@@ -1468,6 +1604,85 @@ public abstract class ReplayReader<T> where T : Replay, new()
                 {
                     archive.RestoreTempEnd(FBitArchiveEndIndex.FIELD_HEADER_PAYLOAD);
                 }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>ChestCounter patch: hands the remaining bits of a field payload to <see cref="RawProbe"/>.</summary>
+    private static void ProbeField(uint channelIndex, string group, string field, FBitArchive archive)
+    {
+        if (RawProbe.Sink == null || !RawProbe.Matches(group + "." + field))
+        {
+            return;
+        }
+        var bits = archive.GetBitsLeft();
+        if (bits > 0)
+        {
+            RawProbe.Sink(channelIndex, group, field, archive.ReadBits(bits).ToArray(), bits);
+        }
+    }
+
+    /// <summary>
+    /// ChestCounter patch: reads a bunch of a group the parser does not know, without decoding it,
+    /// and hands every property / ClassNetCache field payload to <see cref="RawProbe"/>.
+    /// </summary>
+    private bool ProbeReplicatorBunch(DataBunch bunch, FBitArchive archive, NetFieldExportGroup group, bool bHasRepLayout)
+    {
+        if (bHasRepLayout)
+        {
+            archive.ReadBit(); // property checksum flag
+            while (true)
+            {
+                var handle = archive.ReadIntPacked();
+                if (handle == 0 || archive.IsError)
+                {
+                    break;
+                }
+                handle--;
+                var numBits = archive.ReadIntPacked();
+                if (archive.IsError || numBits > archive.GetBitsLeft())
+                {
+                    return false;
+                }
+                if (numBits == 0)
+                {
+                    continue;
+                }
+                var name = group.IsValidIndex(handle) ? group.NetFieldExports[handle]?.Name ?? $"#{handle}" : $"#{handle}";
+                RawProbe.Sink!(bunch.ChIndex, group.PathName, name, archive.ReadBits(numBits).ToArray(), (int)numBits);
+            }
+        }
+
+        if (archive.AtEnd())
+        {
+            return true;
+        }
+
+        if (!_netGuidCache.TryGetClassNetCache(group.PathName, out var classNetCache, bunch.Archive.EngineNetworkVersion >= EngineNetworkVersionHistory.HISTORY_CLASSNETCACHE_FULLNAME))
+        {
+            return false;
+        }
+
+        while (ReadFieldHeaderAndPayload(archive, classNetCache, out var fieldCache, out var payload))
+        {
+            if (payload is null)
+            {
+                continue;
+            }
+            archive.SetTempEnd((int)payload, FBitArchiveEndIndex.FIELD_HEADER_PAYLOAD);
+            try
+            {
+                var bits = archive.GetBitsLeft();
+                if (bits > 0 && !archive.IsError)
+                {
+                    RawProbe.Sink!(bunch.ChIndex, classNetCache.PathName, fieldCache?.Name ?? "?", archive.ReadBits(bits).ToArray(), bits);
+                }
+            }
+            finally
+            {
+                archive.RestoreTempEnd(FBitArchiveEndIndex.FIELD_HEADER_PAYLOAD);
             }
         }
 
@@ -2282,6 +2497,11 @@ public abstract class ReplayReader<T> where T : Replay, new()
     /// <summary>
     /// Notifies when a new actor channel is created.
     /// </summary>
+    /// <summary>ChestCounter patch: called the first time an object path is sent in the replay.</summary>
+    protected virtual void OnNetGuidExported(uint netGuid, string pathName)
+    {
+    }
+
     protected virtual void OnChannelOpened(uint channelIndex, NetworkGUID? actor)
     {
 
@@ -2293,6 +2513,14 @@ public abstract class ReplayReader<T> where T : Replay, new()
     protected virtual void OnChannelClosed(uint channelIndex, NetworkGUID? actor)
     {
 
+    }
+
+    /// <summary>
+    /// ChestCounter patch: called just before a channel is closed, with the channel (its actor is still known) and the
+    /// reason given by the server (actor destroyed, gone dormant, no longer relevant...).
+    /// </summary>
+    protected virtual void OnChannelClosing(uint channelIndex, UChannel channel, ChannelCloseReason reason)
+    {
     }
 
     /// <summary>

@@ -64,6 +64,10 @@ public abstract class BaseContainer : INetFieldExportGroup
     [NetFieldExport("ChosenRandomUpgrade", RepLayoutCmdType.PropertyInt)]
     public int? ChosenRandomUpgrade { get; set; }
 
+    // ajout fortnite-stats : joueur (pawn) qui fouille le coffre
+    [NetFieldExport("SearchingPawn", RepLayoutCmdType.PropertyObject)]
+    public uint? SearchingPawn { get; set; }
+
     [NetFieldExport("bMirrored", RepLayoutCmdType.PropertyBool)]
     public bool bMirrored { get; set; }
 

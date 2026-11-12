@@ -18,13 +18,16 @@ from pathlib import Path
 from replay_reader import summarize
 
 APP_NAME = "Fortnite Chest Tracker"
-VERSION = "1.3.0"
+VERSION = "2.0.0"
 DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "FortniteChestTracker"
 CONFIG_PATH = DATA_DIR / "config.json"
 DB_PATH = DATA_DIR / "games.db"
 LOG_PATH = DATA_DIR / "log.txt"
 DASHBOARD = DATA_DIR / "dashboard.html"
 ARCHIVE = DATA_DIR / "replays"
+COLLECTION = DATA_DIR / "collection.json"   # rewards ticked by hand in "Your collection"
+SITE_STATE = DATA_DIR / "site_state.json"   # data version + game in progress (read by the page every 5 s)
+SITE_PORT = 47321                           # local page: http://127.0.0.1:47321/ (this PC only)
 FN_SAVED = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "FortniteGame" / "Saved"
 DEMOS = FN_SAVED / "Demos"
 FN_LOG = FN_SAVED / "Logs" / "FortniteGame.log"
@@ -38,6 +41,8 @@ if getattr(sys, "frozen", False):
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent / "build" / "cc"
 CHEST_EXE = BASE_DIR / "ChestCounter.exe"
+# page files (bundled inside the exe by PyInstaller, next to this file in dev)
+RES_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
 
 # ---------------------------------------------------------------- language
@@ -160,6 +165,7 @@ COLUMNS = [
     ("other_damage", "INTEGER"), ("damage_taken", "INTEGER"), ("damage_to_structures", "INTEGER"),
     ("revives", "INTEGER"), ("materials_gathered", "INTEGER"), ("materials_used", "INTEGER"),
     ("total_traveled_cm", "INTEGER"), ("kill_feed", "INTEGER"), ("changelist", "INTEGER"), ("added_at", "TEXT"),
+    ("mode", "TEXT"), ("play_s", "INTEGER"), ("treasure", "TEXT"),   # v2: playlist, time really in game, treasure-hunt finds (JSON)
 ]
 
 
@@ -232,10 +238,8 @@ def scan(con, cfg, on_game=None):
         if not dest.exists():
             shutil.copy2(f, dest)  # Fortnite deletes old replays by itself
         res = count_chests(dest, cfg) or {}
-        s.update(replay=f.name, chests=res.get("chests_opened"), chests_broken=res.get("chests_broken"),
-                 player=res.get("player"), added_at=datetime.now().isoformat(sep=" ", timespec="seconds"))
-        if res.get("team_won"):
-            s["placement"] = 1  # the team won after the player died
+        s.update(replay=f.name, player=res.get("player"), added_at=datetime.now().isoformat(sep=" ", timespec="seconds"))
+        apply_result(s, res)
         names = [n for n, _ in COLUMNS]
         con.execute(f"INSERT OR IGNORE INTO games ({', '.join(names)}) VALUES ({', '.join('?' * len(names))})",
                     [s.get(n) for n in names])
@@ -248,6 +252,38 @@ def scan(con, cfg, on_game=None):
     if added:
         write_dashboard(con, cfg, live_game())
     return added
+
+
+def apply_result(s, res):
+    """Copies what ChestCounter found into the game row."""
+    s["chests"] = res.get("chests_opened")
+    s["chests_broken"] = res.get("chests_broken")
+    if res.get("land_time") is not None and res.get("last_pos_time") is not None:
+        s["play_s"] = max(0, round(res["last_pos_time"] - res["land_time"]))
+    if res.get("team_won"):
+        s["placement"] = 1  # the team won after the player died
+    s["mode"] = res.get("playlist")
+    if "treasure" in res:
+        s["treasure"] = json.dumps({
+            "items": res.get("treasure") or [], "chests": res.get("special_chests") or {}, "mate_chests": res.get("mate_chests") or [],
+            "treasures": res.get("treasures") or [], "prizes": res.get("prizes") or [], "by_type": res.get("by_type") or {},
+            "seen_prizes": res.get("seen_prizes") or [], "mates": res.get("mates") or []}, ensure_ascii=False)
+
+
+def recount(con, cfg):
+    """Reads every archived replay again with the current ChestCounter (after an update)."""
+    n = 0
+    for (name,) in con.execute("SELECT replay FROM games").fetchall():
+        f = ARCHIVE / name
+        res = count_chests(f, cfg) if f.exists() else None
+        if not res or res.get("chests_opened") is None:
+            continue
+        s = {}
+        apply_result(s, res)
+        con.execute(f"UPDATE games SET {', '.join(k + ' = ?' for k in s)} WHERE replay = ?", [*s.values(), name])
+        con.commit()
+        n += 1
+    return n
 
 
 # ---------------------------------------------------------------- stats
@@ -343,16 +379,99 @@ def live_game():
             st = p.stat()
         except OSError:
             continue
-        if now - st.st_mtime < 45:  # still being written
+        if now - st.st_mtime < 120:  # still being written (Fortnite writes the replay in chunks)
             return st.st_ctime
     return None
 
 
 def write_dashboard(con, cfg, live_since=None):
-    from dashboard import render
+    import hashlib
+    import webpage as S
     r = rows(con)
     start = int(cfg.get("start_chests") or 0)
-    DASHBOARD.write_text(render(r, totals(r, start), records(r) if r else [], cfg, VERSION, live_since), encoding="utf-8")
+    ver = hashlib.sha1(json.dumps([(x["replay"], x["chests"], x["treasure"]) for x in r] + [cfg.get("features"), cfg.get("lang"), start],
+                                  default=str).encode()).hexdigest()[:12]
+    try:
+        saved = json.loads(COLLECTION.read_text(encoding="utf-8"))
+    except Exception:
+        saved = {}
+    data = S.build(r, totals(r, start), records(r) if r else [], cfg, DATA_DIR, live_since, datetime.now(), ver, saved)
+    data["port"] = SITE_PORT
+    DASHBOARD.write_text(S.render(RES_DIR / "site_template.html", RES_DIR / "i18n.js", data), encoding="utf-8")
+    SITE_STATE.write_text(json.dumps({"v": ver, "live": int(live_since) if live_since else 0}), encoding="utf-8")
+
+
+# ---------------------------------------------------------------- local page server (127.0.0.1 only)
+OVERLAY_HTML = """<!doctype html><meta charset=utf-8><title>Chest overlay</title>
+<style>html,body{margin:0;background:transparent;font-family:Inter,"Segoe UI",system-ui,sans-serif;overflow:hidden}
+.o{display:inline-flex;align-items:center;gap:14px;padding:12px 22px 12px 14px;border-radius:18px;background:rgba(11,12,16,.82);border:2px solid rgba(247,183,49,.6);color:#fff}
+.o b{font-size:44px;font-weight:800;letter-spacing:-.04em;line-height:1}.o span{display:block;font-size:13px;color:#ffd56b;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.o small{display:block;font-size:13px;color:#cfd3dd;margin-top:2px}.pop{animation:pop .6s}@keyframes pop{40%{transform:scale(1.12)}}</style>
+<div class=o id=o><svg width=54 height=54 viewBox="0 0 32 32"><rect x=3 y=11 width=26 height=17 rx=4 fill="#f7b731"/><path d="M3 15a9 9 0 0 1 9-9h8a9 9 0 0 1 9 9v1H3z" fill="#ffd56b"/><rect x=13.5 y=14.5 width=5 height=7 rx=1.6 fill="#0b0c10"/></svg>
+<div><span id=l></span><b id=n>0</b><small id=s></small></div></div>
+<script>let last=null;const L={en:["Chests","last game"],fr:["Coffres","dernière game"],es:["Cofres","última partida"]};
+function up(){fetch("/api/overlay",{cache:"no-store"}).then(r=>r.json()).then(d=>{const t=L[d.lang]||L.en;l.textContent=t[0];
+ n.textContent=Number(d.total).toLocaleString({fr:"fr-FR",es:"es-ES"}[d.lang]||"en-US");s.textContent=d.last!=null?"+"+d.last+" · "+t[1]:"";
+ if(last!==null&&d.total!==last){o.classList.remove("pop");void o.offsetWidth;o.classList.add("pop")}last=d.total}).catch(()=>{})}up();setInterval(up,5000)</script>"""
+
+
+def start_server(cfg_ref):
+    """Serves the dashboard on http://127.0.0.1:SITE_PORT/ (also saves the collection ticks and serves the OBS overlay)."""
+    from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def _send(self, code, body, ctype="text/html; charset=utf-8"):
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body if isinstance(body, bytes) else body.encode("utf-8"))
+
+        def do_GET(self):
+            path = self.path.split("?")[0]
+            if path in ("/", "/dashboard.html"):
+                return self._send(200, DASHBOARD.read_bytes() if DASHBOARD.exists() else b"...")
+            if path == "/api/state":
+                return self._send(200, SITE_STATE.read_bytes() if SITE_STATE.exists() else b"{}", "application/json")
+            if path == "/api/collection":
+                return self._send(200, COLLECTION.read_bytes() if COLLECTION.exists() else b"{}", "application/json")
+            if path == "/overlay":
+                return self._send(200, OVERLAY_HTML)
+            if path == "/api/overlay":
+                con = db()
+                r = rows(con)
+                con.close()
+                cfg = cfg_ref()
+                tot = int(cfg.get("start_chests") or 0) + sum(x["chests"] or 0 for x in r)
+                body = json.dumps({"total": tot, "last": r[0]["chests"] if r else None, "lang": cfg.get("lang", "en")})
+                return self._send(200, body, "application/json")
+            if path.startswith("/img/"):
+                f = DATA_DIR / "img" / Path(path).name
+                if f.is_file():
+                    return self._send(200, f.read_bytes(), "image/webp" if f.suffix == ".webp" else "image/png")
+            self._send(404, b"not found", "text/plain")
+
+        def do_POST(self):
+            if self.path != "/api/collection":
+                return self._send(404, b"", "text/plain")
+            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                data = json.loads(self.rfile.read(min(n, 20000)) or b"{}")
+                COLLECTION.write_text(json.dumps({str(k)[:80]: bool(v) for k, v in data.items()}, indent=1), encoding="utf-8")
+                self._send(200, b'{"ok":true}', "application/json")
+            except Exception as e:
+                self._send(400, str(e), "text/plain")
+
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", SITE_PORT), H)
+    except OSError as e:
+        log(f"Local page server not started ({e})")
+        return False
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return True
 
 
 # ---------------------------------------------------------------- background watcher
@@ -381,18 +500,28 @@ class Tracker(threading.Thread):
                 notify(tr("replays_off_title", lang), tr("replays_off_text", lang))
 
     def run(self):
+        import webpage as S
         con = db()
         log(tr("watching", self.cfg.get("lang", "en"), path=DEMOS))
+        S.refresh_catalog(DATA_DIR, log)
+        if self.cfg.get("data_version", 1) < 2:   # first start of v2: read the old games again for the new stats
+            recount(con, self.cfg)
+            self.cfg["data_version"] = 2
+            save_config(self.cfg)
         live = live_game()
         write_dashboard(con, self.cfg, live)
+        last_page = time.time()
         while not self.stop_event.is_set():
             try:
                 added = scan(con, self.cfg, self.on_game)
                 self.check_replays()
                 now_live = live_game()
-                if added or bool(now_live) != bool(live):  # "game in progress" banner on / off
+                if added or bool(now_live) != bool(live) or time.time() - last_page > 600:   # live on / off, or every 10 min
+                    if time.time() - last_page > 600:
+                        S.refresh_catalog(DATA_DIR, log)
                     live = now_live
                     write_dashboard(con, self.cfg, live)
+                    last_page = time.time()
             except Exception as e:
                 log(f"Error: {e}")
             self.stop_event.wait(10 if live else CHECK_EVERY_S)
