@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://b0ulbix.github.io/fortnite-chest-tracker/sitemap.xml

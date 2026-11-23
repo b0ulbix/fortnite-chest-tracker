@@ -3,7 +3,7 @@
 const I18N = {
 "Coffres au total":["Total chests","Cofres en total"],
 "coffres ouverts ou cassés · ":["chests opened or broken · ","cofres abiertos o rotos · "],
-"Esprits":["Sprites","Sprites"],"Traqueur de collection Fortnite":["Fortnite collection tracker","Rastreador de colección de Fortnite"],
+"Treasure Hunters · semaine":["Treasure Hunters · week","Treasure Hunters · semana"],"Esprits":["Sprites","Sprites"],"Traqueur de collection Fortnite":["Fortnite collection tracker","Rastreador de colección de Fortnite"],
 "Chaque esprit et ses variantes : collectés vs manquants":["Every sprite and variant: collected vs missing","Cada sprite y sus variantes: conseguidos vs pendientes"],
 "Ta collection d’esprits et ceux que tu as maîtrisés":["Your sprites collection and the ones you mastered","Tu colección de sprites y los que dominas"],
 "Maudit":["Cursed","Maldito"],"Chanceux":["Fortune","Fortuna"],"Or":["Gold","Oro"],"Normal":["Normal","Normal"],

@@ -14,6 +14,12 @@ Compte tous les coffres que tu ouvres (et casses) sur Fortnite, game après game
 Unzip → open the <code>FortniteChestTracker</code> folder → double-click <code>FortniteChestTracker.exe</code>.<br>
 Dézippe → ouvre le dossier <code>FortniteChestTracker</code> → double-clique sur <code>FortniteChestTracker.exe</code>.</p>
 
+<p align="center">🌐 <b><a href="https://b0ulbix.github.io/fortnite-chest-tracker/">Website</a></b> · <a href="https://b0ulbix.github.io/fortnite-chest-tracker/fr/">Site en français</a> · <a href="https://b0ulbix.github.io/fortnite-chest-tracker/es/">Web en español</a></p>
+
+<p align="center"><img src="docs/img/home.png" alt="Fortnite Chest Tracker dashboard: total chests opened, last game, goal and session" width="900"></p>
+
+<p align="center"><img src="docs/img/sprites.png" alt="Fortnite sprites collection tracker: normal, cursed, fortune and gold sprites, mastered sprites" width="440"> <img src="docs/img/hunt.png" alt="Fortnite Treasure Hunters odds: Pirate Shop Access token and weekly gold rewards" width="440"></p>
+
 <p align="center"><a href="#english">English</a> · <a href="#français">Français</a> · Español: la app y el panel están en español (elígelo en la configuración o con el botón ES).</p>
 
 ---
@@ -21,6 +27,8 @@ Dézippe → ouvre le dossier <code>FortniteChestTracker</code> → double-cliqu
 ## English
 
 ### What it does
+**How many chests have you opened in Fortnite?** The game never tells you. This free chest tracker / chest counter reads your Fortnite replays and keeps the count for you, with your Treasure Hunters odds (Pirate Shop Access token, gold rewards), a sprites collection tracker and a live OBS chest counter.
+
 - After each game, reads the replay Fortnite saves on your PC and counts **the chests you opened or broke**. The replay says
   exactly who searched and who broke each chest, so the count is exact: normal, rare, relic, buried (Sprite) and wanted-poster chests.
 - **You choose what you need** at the first launch (and any time in Settings): the dashboard only shows those parts.
@@ -92,6 +100,8 @@ Run `build.bat` → `build\FortniteChestTracker-vX.Y.Z.zip`.
 ## Français
 
 ### Ce que ça fait
+**Combien de coffres as-tu ouverts sur Fortnite ?** Le jeu ne le dit jamais. Ce compteur de coffres gratuit lit tes replays Fortnite et tient le compte pour toi, avec tes chances de la chasse au trésor (jeton Accès Boutique Pirate, récompenses dorées), le suivi de ta collection d'esprits et un compteur de coffres en direct pour OBS.
+
 - Après chaque game, lit le replay que Fortnite enregistre sur ton PC et compte **les coffres que tu as ouverts ou cassés**. Le replay dit
   exactement qui fouille et qui casse chaque coffre : le comptage est exact (normaux, rares, reliques, coffres à esprit enterrés, avis de recherche).
 - **Tu choisis ce dont tu as besoin** au premier lancement (et à tout moment dans Réglages) : le tableau n'affiche que ces parties.
