@@ -451,7 +451,7 @@ def start_server(cfg_ref):
             if path.startswith("/img/"):
                 f = DATA_DIR / "img" / Path(path).name
                 if f.is_file():
-                    return self._send(200, f.read_bytes(), "image/webp" if f.suffix == ".webp" else "image/png")
+                    return self._send(200, f.read_bytes(), {".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(f.suffix, "image/png"))
             self._send(404, b"not found", "text/plain")
 
         def do_POST(self):

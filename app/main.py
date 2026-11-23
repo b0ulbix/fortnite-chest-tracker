@@ -31,6 +31,9 @@ S = {  # UI texts per language
     "lang": {"en": "Language", "fr": "Langue", "es": "Idioma"},
     "next": {"en": "Next  →", "fr": "Suivant  →", "es": "Siguiente  →"},
     "back": {"en": "←  Back", "fr": "←  Retour", "es": "←  Atrás"},
+    "new_sprites": {"en": "New in this version: a Sprites tab to tick the sprites you own and the ones you mastered.\n\nTurn it on? (you can change it any time in Settings)",
+                    "fr": "Nouveau dans cette version : un onglet Esprits pour cocher les esprits que tu as et ceux que tu as maîtrisés.\n\nL'activer ? (modifiable à tout moment dans Réglages)",
+                    "es": "Nuevo en esta versión: una pestaña de Sprites para marcar los que tienes y los que dominas.\n\n¿Activarla? (puedes cambiarlo cuando quieras en Ajustes)"},
     "need_name": {"en": "Enter your Fortnite name.", "fr": "Entre ton pseudo Fortnite.", "es": "Escribe tu nombre de Fortnite."},
     "step2": {"en": "Are replays turned on?", "fr": "Les replays sont-ils activés ?", "es": "¿Están activadas las repeticiones?"},
     "ok": {"en": "✔  Replays are turned on", "fr": "✔  Les replays sont activés", "es": "✔  Las repeticiones están activadas"},
@@ -106,6 +109,10 @@ FEATURES = (  # key, title, description (en, fr, es)
      ("Your chances with Epic's odds, rewards collection, Treasure Hours countdown, treasures found.",
       "Tes chances avec les cotes d'Epic, collection de récompenses, compte à rebours des Treasure Hours, trésors trouvés.",
       "Tus probabilidades con las de Epic, colección de recompensas, cuenta atrás de las Treasure Hours, tesoros encontrados.")),
+    ("sprites", ("Sprites collection", "Collection d'esprits", "Colección de sprites"),
+     ("Tick the sprites you own and the ones you mastered, with every variant (normal, cursed, fortune, gold).",
+      "Coche les esprits que tu as et ceux que tu as maîtrisés, avec toutes les variantes (normal, maudit, chanceux, or).",
+      "Marca los sprites que tienes y los que dominas, con todas las variantes (normal, maldito, fortuna, oro).")),
     ("squad", ("Squad", "Escouade", "Escuadra"),
      ("Your mates: games together, wins, what each of them finds.", "Tes mates : games ensemble, Top 1, ce que chacun trouve.",
       "Tus compañeros: partidas juntos, victorias, lo que encuentra cada uno.")),
@@ -122,7 +129,7 @@ FEATURES = (  # key, title, description (en, fr, es)
      ("A live chest counter to add as a Browser source in OBS.", "Un compteur de coffres en direct à ajouter comme Source navigateur dans OBS.",
       "Un contador de cofres en directo para añadir como Fuente de navegador en OBS.")),
 )
-PRESETS = {"all": ["hunt", "squad", "stats", "calendar", "goals", "overlay"], "min": [], "stream": ["hunt", "goals", "overlay"]}
+PRESETS = {"all": ["hunt", "sprites", "squad", "stats", "calendar", "goals", "overlay"], "min": [], "stream": ["hunt", "goals", "overlay"]}
 
 
 class App:
@@ -145,8 +152,22 @@ class App:
             self.main_window()
             if minimized:
                 self.root.iconify()
+            if not self.cfg.get("asked_sprites"):
+                self.root.after(800, lambda: self.root.winfo_exists() and self.ask_new_features())
         else:
             self.wizard_names()
+
+    def ask_new_features(self):
+        """v2.1: asks once the users who come from v2.0 if they want the new Sprites tab."""
+        self.cfg["asked_sprites"] = True
+        feats = list(self.cfg.get("features") or [])
+        if "sprites" not in feats and messagebox.askyesno(T.APP_NAME, self.t("new_sprites")):
+            self.cfg["features"] = feats + ["sprites"]
+        T.save_config(self.cfg)
+        try:
+            T.write_dashboard(T.db(), self.cfg)
+        except Exception:
+            pass
 
     def t(self, key, **kw):
         texts = S[key]
@@ -307,6 +328,7 @@ class App:
         else:
             self.new_cfg["skip_before"] = self.cfg.get("skip_before", 0)
             self.new_cfg["installed_at"] = self.cfg.get("installed_at")
+        self.new_cfg["asked_sprites"] = True  # the features step already offered the Sprites tab
         self.cfg = self.new_cfg
         T.save_config(self.cfg)
         try:

@@ -6,7 +6,7 @@
 Compte tous les coffres que tu ouvres (et casses) sur Fortnite, game après game, grâce à tes replays, avec un tableau de stats complet et la chasse au trésor.</p>
 
 <p align="center">
-  <a href="https://github.com/b0ulbix/fortnite-chest-tracker/releases/download/v2.0.0/FortniteChestTracker-v2.0.0.zip"><img src="https://img.shields.io/badge/DOWNLOAD%20%2F%20T%C3%89L%C3%89CHARGER-v2.0.0%20(Windows)-2ea44f?style=for-the-badge&logo=windows&logoColor=white" alt="Download / Télécharger v2.0.0 (Windows)"></a>
+  <a href="https://github.com/b0ulbix/fortnite-chest-tracker/releases/download/v2.1.0/FortniteChestTracker-v2.1.0.zip"><img src="https://img.shields.io/badge/DOWNLOAD%20%2F%20T%C3%89L%C3%89CHARGER-v2.1.0%20(Windows)-2ea44f?style=for-the-badge&logo=windows&logoColor=white" alt="Download / Télécharger v2.1.0 (Windows)"></a>
 </p>
 
 <p align="center"><b>⚠️ The green "Code" button does NOT contain the app: use the download button above.</b><br>
@@ -29,6 +29,7 @@ Dézippe → ouvre le dossier <code>FortniteChestTracker</code> → double-cliqu
 |---|---|
 | **Chest counter** (always on) | Total chests (opened / broken), last game, every game with its details |
 | **Treasure hunt** | Your chances with Epic's published odds, your weekly rewards collection, Treasure Hours countdown, treasures received (yours and your squad's), golden chest rewards seen near you |
+| **Sprites collection** (new in v2.1) | Every sprite and variant (normal, cursed, fortune, gold) in one table: click the ones you own, the ♛ crown for the ones you mastered, filters for missing / owned / mastered |
 | **Squad** | Your regular mates: games together, wins, what each of them finds |
 | **Detailed stats** | Charts, chest types, stats by mode, best days and hours, personal records |
 | **Chest calendar** | Week by week, hour by hour: how many chests and how long you played |
@@ -42,7 +43,7 @@ Dézippe → ouvre le dossier <code>FortniteChestTracker</code> → double-cliqu
   (weeks, rewards, odds, Treasure Hours) once a day.
 
 ### Install (2 minutes)
-1. Click the **download button** above (or open [Releases](../../releases/latest)) and get `FortniteChestTracker-v2.0.0.zip`.
+1. Click the **download button** above (or open [Releases](../../releases/latest)) and get `FortniteChestTracker-v2.1.0.zip`.
 2. Unzip it anywhere (for example in `Documents`). Keep the two `.exe` files together.
 3. Double-click **`FortniteChestTracker.exe`**. A short setup opens:
    - **your Fortnite name** (exactly as in game) and your **language**,
@@ -57,7 +58,13 @@ Dézippe → ouvre le dossier <code>FortniteChestTracker</code> → double-cliqu
 > **Windows SmartScreen / antivirus**: the app is not code-signed (a certificate costs money), so Windows may show
 > "Windows protected your PC". Click **More info → Run anyway**. You can check the source code here and build it yourself.
 
-> **Updating from v1**: just replace the two `.exe` files. Your games are read again once at the first start to fill the new stats.
+> **Updating**: just replace the two `.exe` files, your games and settings are kept. Coming from v2.0, the app asks once if you want the new Sprites tab.
+
+### New in v2.1
+- **Sprites tab**: tick the sprites you own and the ones you mastered (59 sprites with all their variants).
+- More chest types counted (loot cannon, cenote and tier 5 chests), vault supply drops listed in the squad finds.
+- Treasure hunt: real names and pictures for week 4, names for week 5 (the community catalog only had placeholders).
+- Fixes: week 4/5 back blings were shown as pickaxes, `.jpg` reward pictures.
 
 ### Good to know
 - Fortnite only keeps your **latest** replays and deletes older ones: games played before installing the tool can't be recovered.
@@ -78,6 +85,7 @@ Run `build.bat` → `build\FortniteChestTracker-vX.Y.Z.zip`.
   `site_template.html`, `i18n.js`).
 - Treasure detection methods adapted from [LED-N/Fortnite-ChestCounter](https://github.com/LED-N/Fortnite-ChestCounter) and
   [Linox-IDK/LNXcounter](https://github.com/Linox-IDK/LNXcounter) (MIT). See `THIRD_PARTY_NOTICES.md`.
+- Sprite list and pictures, and the week 4-5 reward names, come from [fortnite.gg](https://fortnite.gg) (downloaded by the app at first start, not stored in this repo).
 
 ---
 
@@ -92,6 +100,7 @@ Run `build.bat` → `build\FortniteChestTracker-vX.Y.Z.zip`.
 |---|---|
 | **Compteur de coffres** (toujours actif) | Total (ouverts / cassés), dernière game, toutes tes games avec le détail |
 | **Chasse au trésor** | Tes chances avec les cotes publiées par Epic, ta collection de récompenses de la semaine, compte à rebours des Treasure Hours, trésors reçus (les tiens et ceux de ton escouade), récompenses de coffre doré vues près de toi |
+| **Collection d'esprits** (nouveau en v2.1) | Tous les esprits et leurs variantes (normal, maudit, chanceux, or) dans un tableau : clique ceux que tu as, la couronne ♛ pour ceux que tu as maîtrisés, filtres manquants / obtenus / maîtrisés |
 | **Escouade** | Tes mates réguliers : games ensemble, Top 1, ce que chacun trouve |
 | **Stats détaillées** | Graphiques, types de coffres, stats par mode, meilleurs jours et heures, records |
 | **Calendrier des coffres** | Semaine par semaine, heure par heure : combien de coffres et combien de temps de jeu |
@@ -105,7 +114,7 @@ Run `build.bat` → `build\FortniteChestTracker-vX.Y.Z.zip`.
   de la chasse au trésor (semaines, récompenses, cotes, Treasure Hours), une fois par jour.
 
 ### Installation (2 minutes)
-1. Clique sur le **bouton de téléchargement** ci-dessus (ou ouvre [Releases](../../releases/latest)) et récupère `FortniteChestTracker-v2.0.0.zip`.
+1. Clique sur le **bouton de téléchargement** ci-dessus (ou ouvre [Releases](../../releases/latest)) et récupère `FortniteChestTracker-v2.1.0.zip`.
 2. Dézippe-le où tu veux (par exemple dans `Documents`). Garde les deux `.exe` ensemble.
 3. Double-clique sur **`FortniteChestTracker.exe`**. Un petit assistant s'ouvre :
    - **ton pseudo Fortnite** (exactement comme en jeu) et ta **langue**,
@@ -121,7 +130,13 @@ Run `build.bat` → `build\FortniteChestTracker-vX.Y.Z.zip`.
 > **SmartScreen / antivirus** : l'appli n'est pas signée (un certificat est payant), Windows peut afficher
 > « Windows a protégé votre ordinateur ». Clique sur **Informations complémentaires → Exécuter quand même**.
 
-> **Mise à jour depuis la v1** : remplace simplement les deux `.exe`. Tes games sont relues une fois au premier lancement pour remplir les nouvelles stats.
+> **Mise à jour** : remplace simplement les deux `.exe`, tes games et réglages sont gardés. Depuis la v2.0, l'appli te demande une fois si tu veux le nouvel onglet Esprits.
+
+### Nouveau en v2.1
+- **Onglet Esprits** : coche les esprits que tu as et ceux que tu as maîtrisés (59 esprits avec toutes leurs variantes).
+- Plus de types de coffres comptés (canon à butin, cénote, coffres de niveau 5), ravitaillements de salle forte listés dans les trouvailles.
+- Chasse au trésor : vrais noms et images de la semaine 4, noms de la semaine 5 (le catalogue communautaire n'avait que des noms provisoires).
+- Corrections : les sacs à dos des semaines 4-5 étaient affichés comme des pioches, images `.jpg` des récompenses.
 
 ### Bon à savoir
 - Fortnite ne garde que tes **derniers** replays : les games jouées avant d'installer le tool ne peuvent pas être récupérées.

@@ -69,6 +69,16 @@ public class BootyChestV1 : BaseContainer { }
 [NetFieldExportGroup("/SpritePosters/Blueprints/Items/Booty/B_SpritePosters_Booty_Chest_Variant2.B_SpritePosters_Booty_Chest_Variant2_C", minimalParseMode: ParseMode.Minimal)]
 public class BootyChestV2 : BaseContainer { }
 
+// Added (v2.1): other chests seen in this season's replays
+[NetFieldExportGroup("/Game/Building/ActorBlueprints/Containers/Tiered_Chest_5_Child.Tiered_Chest_5_Child_C", minimalParseMode: ParseMode.Minimal)]
+public class Chest5Child : BaseContainer { }
+[NetFieldExportGroup("/DelilahDynamicLevels/Gameplay/BGA_LootCannon_StandardChest_Pirate.BGA_LootCannon_StandardChest_Pirate_C", minimalParseMode: ParseMode.Minimal)]
+public class LootCannonChest : BaseContainer { }
+[NetFieldExportGroup("/Delilah/Maps/Test/Allen/CenotePuzzle/BP_Chests_Cenote.BP_Chests_Cenote_C", minimalParseMode: ParseMode.Minimal)]
+public class CenoteChest : BaseContainer { }
+[NetFieldExportGroup("/Game/Athena/SupplyDrops/AthenaSupplyDrop_Vault.AthenaSupplyDrop_Vault_C", minimalParseMode: ParseMode.Minimal)]
+public class VaultSupplyDrop : BaseContainer { }
+
 // Ajout fortnite-stats : objets "donnés" par un acteur (récompenses de coffre au trésor ?)
 public class GrantedItemEntry
 {

@@ -5,6 +5,7 @@ Treasure hunt data (weeks, prize ids, odds, Treasure Hours) comes from the publi
 LED-N/Fortnite-ChestCounter (MIT), cached in the data folder and refreshed once a day.
 """
 import json
+import re
 import math
 import urllib.request
 from datetime import datetime, timedelta
@@ -24,12 +25,107 @@ TREASURE_ITEMS = {
     "GizmoLuckyLocator": "Localisateur chanceux", "GizmoSpriteLocator": "Localisateur d'esprit",
 }
 SPECIAL_CHESTS = {"RareChest": "Coffre rare", "RelicChest": "Coffre de relique", "BuriedChest": "Coffre à esprit (déterré)",
-                  "BootyChest": "Coffre d'avis de recherche"}
+                  "BootyChest": "Coffre d'avis de recherche", "VaultSupplyDrop": "Ravitaillement de salle forte"}
 CHEST_NORM = {"RelicChestV1": "RelicChest", "RelicChestV2": "RelicChest", "BootyChestV1": "BootyChest", "BootyChestV2": "BootyChest",
-              "BuriedChestRelicFinder": "BuriedChest", "AlwaysSpawnChest": None, "FactionChest": None, "Chest": None, "ExtractionChest": None}
+              "BuriedChestRelicFinder": "BuriedChest", "AlwaysSpawnChest": None, "FactionChest": None, "Chest": None, "ExtractionChest": None,
+              "Chest5Child": None, "LootCannonChest": None, "CenoteChest": None}
 ITEM_ALIASES = {"WID_RelicExtractor_Consumable": "GizmoPortableExtractorReload", "WID_RelicExtractor": "GizmoPortableExtractor"}
 OUT_OF_SIGHT = "Un mate (hors de vue)"
-ALL_FEATURES = ["hunt", "squad", "stats", "goals", "calendar", "overlay"]
+ALL_FEATURES = ["hunt", "sprites", "squad", "stats", "goals", "calendar", "overlay"]
+
+# Real names / pictures when the community catalog only has "Week N ..." placeholders (taken from fortnite.gg/treasure-hunt)
+PRIZE_FIX = {
+    "w4-outfit": ("Solid Gold Kasane Teto", "https://fortnite.gg/img/items/25303/icon.jpg"),
+    "w4-pickaxe": ("Solid Gold High Tide and Wavecutter", "https://fortnite.gg/img/items/25304/icon.jpg"),
+    "w4-jam": ("Wellerman", "https://fortnite.gg/img/items/25302/icon.jpg"),
+    "w4-loading": ("Oscar's Wraps", "https://fortnite.gg/img/items/25305/icon.jpg"),
+    "w4-car": ("Gold Lamborghini Urus Decal", "https://fortnite.gg/img/x/treasure-hunt/prize-urus.webp"),
+    "w5-outfit": ("Solid Gold Captain X", None), "w5-pickaxe": ("Roasted Meat", None), "w5-jam": ("I Follow Rivers", None),
+    "w5-loading": ("Jones and the Straw Hats", None), "w5-car": ("Gold G-Wagon v2", None),
+}
+BACKBLING_IDS = {"w4-pickaxe", "w5-pickaxe"}  # listed as "pickaxe" in the catalog but they are back blings
+
+# Sprites (list and pictures from fortnite.gg/sprites): name, picture file
+SPRITES = [
+    ("Halfpeel'd", 'T_Icon_BR_Creature_Sprite_PeelyBones_L.webp'),
+    ("Fortune Halfpeel'd", 'T_Icon_BR_Creature_Sprite_PeelyBones_Jeweled_L.webp'),
+    ("Cursed Halfpeel'd", 'T_Icon_BR_Creature_Sprite_PeelyBones_Cursed_L.webp'),
+    ("Gold Halfpeel'd", 'T_Icon_BR_Creature_Sprite_PeelyBones_LiquidGold_L.webp'),
+    ('Re-Pete', 'T_Icon_BR_Creature_Sprite_Parrot_L.webp'),
+    ('Fortune Re-Pete', 'T_Icon_BR_Creature_Sprite_Parrot_Jeweled_L.webp'),
+    ('Cursed Re-Pete', 'T_Icon_BR_Creature_Sprite_Parrot_Cursed_L.webp'),
+    ('Gold Re-Pete', 'T_Icon_BR_Creature_Sprite_Parrot_LiquidGold_L.webp'),
+    ("Barry O'Fish", 'T_Icon_BR_Creature_Sprite_BarrelOfFish_L.webp'),
+    ("Fortune Barry O'Fish", 'T_Icon_BR_Creature_Sprite_BarrelOfFish_Jeweled_L.webp'),
+    ("Cursed Barry O'Fish", 'T_Icon_BR_Creature_Sprite_BarrelOfFish_Cursed_L.webp'),
+    ("Gold Barry O'Fish", 'T_Icon_BR_Creature_Sprite_BarrelOfFish_LiquidGold_L.webp'),
+    ('Wayfinder', 'T_Icon_BR_Creature_Sprite_Compass_L.webp'),
+    ('Fortune Wayfinder', 'T_Icon_BR_Creature_Sprite_Compass_Jeweled_L.webp'),
+    ('Cursed Wayfinder', 'T_Icon_BR_Creature_Sprite_Compass_Cursed_L.webp'),
+    ('Gold Wayfinder', 'T_Icon_BR_Creature_Sprite_Compass_LiquidGold_L.webp'),
+    ('Chester', 'T_Icon_BR_Creature_Sprite_TreasureChest_L.webp'),
+    ('Fortune Chester', 'T_Icon_BR_Creature_Sprite_TreasureChest_Jeweled_L.webp'),
+    ('Cursed Chester', 'T_Icon_BR_Creature_Sprite_TreasureChest_Cursed_L.webp'),
+    ('Gold Chester', 'T_Icon_BR_Creature_Sprite_TreasureChest_LiquidGold_L.webp'),
+    ('Kelper', 'T_Icon_BR_Creature_Sprite_UnbotheredFish_L.webp'),
+    ('Fortune Kelper', 'T_Icon_BR_Creature_Sprite_UnbotheredFish_Jeweled_L.webp'),
+    ('Cursed Kelper', 'T_Icon_BR_Creature_Sprite_UnbotheredFish_Cursed_L.webp'),
+    ('Gold Kelper', 'T_Icon_BR_Creature_Sprite_UnbotheredFish_LiquidGold_L.webp'),
+    ('Exmarks', 'T_Icon_BR_Creature_Sprite_TreasureMap_L.webp'),
+    ('Fortune Exmarks', 'T_Icon_BR_Creature_Sprite_TreasureMap_Jeweled_L.webp'),
+    ('Cursed Exmarks', 'T_Icon_BR_Creature_Sprite_TreasureMap_Cursed_L.webp'),
+    ('Gold Exmarks', 'T_Icon_BR_Creature_Sprite_TreasureMap_LiquidGold_L.webp'),
+    ("Lil' Squibbly", 'T_Icon_BR_Creature_Sprite_SquibblySprite_L.webp'),
+    ("Fortune Lil' Squibbly", 'T_Icon_BR_Creature_Sprite_SquibblySprite_Jeweled_L.webp'),
+    ("Cursed Lil' Squibbly", 'T_Icon_BR_Creature_Sprite_SquibblySprite_Cursed_L.webp'),
+    ("Gold Lil' Squibbly", 'T_Icon_BR_Creature_Sprite_Squibbly_LiquidGold_ui_v1_1_Alpha_L.webp'),
+    ('Squiplash', 'T_Icon_BR_Creature_Sprite_PirateCalamari_L.webp'),
+    ('Fortune Squiplash', 'T_Icon_BR_Creature_Sprite_PirateCalamari_Jeweled_L.webp'),
+    ('Cursed Squiplash', 'T_Icon_BR_Creature_Sprite_PirateCalamari_Cursed_L.webp'),
+    ('Gold Squiplash', 'T_Icon_BR_Creature_Sprite_PirateCalamari_LiquidGold_L.webp'),
+    ("Lil' Flacko", 'T_Icon_BR_Creature_Sprite_PlaymakerBrewery_L.webp'),
+    ("Fortune Lil' Flacko", 'T_Icon_BR_Creature_Sprite_PlaymakerBrewery_Jeweled_L.webp'),
+    ("Cursed Lil' Flacko", 'T_Icon_BR_Creature_Sprite_PlaymakerBrewery_Cursed_L.webp'),
+    ("Gold Lil' Flacko", 'T_Icon_BR_Creature_Sprite_PlaymakerBrewery_LiquidGold_L.webp'),
+    ("Lil' Uzi Vert Jr.", 'T_Icon_BR_Creature_Sprite_RookGecko_L.webp'),
+    ("Fortune Lil' Uzi Vert Jr.", 'T_Icon_BR_Creature_Sprite_RookGecko_Jeweled_L.webp'),
+    ("Cursed Lil' Uzi Vert Jr.", 'T_Icon_BR_Creature_Sprite_RookGecko_Cursed_L.webp'),
+    ("Gold Lil' Uzi Vert Jr.", 'T_Icon_BR_Creature_Sprite_RookGecko_LiquidGold_L.webp'),
+    ('Plundarrgh', 'T_Icon_BR_Creature_Sprite_CoinPile_L.webp'),
+    ('Fortune Plundarrgh', 'T_Icon_BR_Creature_Sprite_CoinPile_Jeweled_L.webp'),
+    ('Cursed Plundarrgh', 'T_Icon_BR_Creature_Sprite_CoinPile_Cursed_L.webp'),
+    ('Gold Plundarrgh', 'T_Icon_BR_Creature_Sprite_CoinPile_LiquidGold_L.webp'),
+    ('Mini Miku', 'T_Icon_BR_Creature_Sprite_LushlyZest_ui_v2_1_Alpha_L.webp'),
+    ('Fortune Mini Miku', 'T_Icon_BR_Creature_Sprite_LushlyZest_Jeweled_ui_v1_1_Alpha_L.webp'),
+    ('Cursed Mini Miku', 'T_Icon_BR_Creature_Sprite_LushlyZest_Cursed_ui_v1_1_Alpha_L.webp'),
+    ('Gold Mini Miku', 'T_Icon_BR_Creature_Sprite_LushlyZest_LiquidGold_ui_v1_1_Alpha_L.webp'),
+    ('Transponder Snail', 'T_Icon_BR_Creature_Sprite_FeedJet_L.webp'),
+    ('Sweet Dreams', 'T_Icon_BR_Creature_Sprite_StarLight_L.webp'),
+    ('Sir Oscar the Second', 'T_Icon_BR_Creature_Sprite_WhiteTiger_L.webp'),
+    ('Fortune Sir Oscar the Second', 'T_Icon_BR_Creature_Sprite_WhiteTiger_Jeweled_L.webp'),
+    ('Cursed Sir Oscar the Second', 'T_Icon_BR_Creature_Sprite_WhiteTiger_Cursed_L.webp'),
+    ('Gold Sir Oscar the Second', 'T_Icon_BR_Creature_Sprite_WhiteTiger_LiquidGold_L.webp'),
+    ('Zee', 'T_Icon_BR_Creature_Sprite_ZeroPointPiece_ui_v3_1_Alpha_L.webp')
+]
+SPRITE_IMG = "https://fortnite.gg/img/x/sprites/icons/"
+
+
+def _sprite_id(name):
+    return "sp-" + re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def _sprites():
+    out = []
+    for name, _ in SPRITES:
+        var = next((v for v in ("Fortune", "Cursed", "Gold") if name.startswith(v + " ")), "")
+        sid = _sprite_id(name)
+        out.append({"id": sid, "n": name, "b": name[len(var) + 1:] if var else name, "img": f"img/{sid}.webp",
+                    "v": {"": "normal", "Fortune": "fortune", "Cursed": "cursed", "Gold": "gold"}[var]})
+    return out
+
+
+def _is_bb(p):
+    return "backbling" in p["id"] or p["id"] in BACKBLING_IDS
 
 
 # ------------------------------------------------------------------ treasure-hunt catalog
@@ -47,6 +143,15 @@ def refresh_catalog(data_dir, log=lambda m: None):
             log(f"Treasure catalog not updated ({e})")
     try:
         img_dir.mkdir(parents=True, exist_ok=True)
+        for name, file in SPRITES:
+            dest = img_dir / (_sprite_id(name) + ".webp")
+            if not dest.exists():
+                req = urllib.request.Request(SPRITE_IMG + file, headers={"User-Agent": "fortnite-chest-tracker"})
+                dest.write_bytes(urllib.request.urlopen(req, timeout=15).read())
+    except Exception as e:
+        log(f"Sprite pictures not downloaded ({e})")
+    try:
+        img_dir.mkdir(parents=True, exist_ok=True)
         for p in _all_prizes(load_catalog(data_dir)):
             url = p.get("image") or ""
             dest = img_dir / (p["id"] + Path(url.split("?")[0]).suffix)
@@ -59,9 +164,17 @@ def refresh_catalog(data_dir, log=lambda m: None):
 
 def load_catalog(data_dir):
     try:
-        return json.loads((data_dir / "treasure_catalog.json").read_text(encoding="utf-8"))
+        cat = json.loads((data_dir / "treasure_catalog.json").read_text(encoding="utf-8"))
     except Exception:
         return {"odds": [], "weeks": [], "treasureHours": []}
+    for w in cat.get("weeks") or []:
+        for p in w.get("prizes") or []:
+            fix = PRIZE_FIX.get(p.get("id"))
+            if fix and (not p.get("name") or p["name"].startswith("Week ")):
+                p["name"] = fix[0]
+            if fix and fix[1] and not p.get("image"):
+                p["image"] = fix[1]
+    return cat
 
 
 def _all_prizes(cat):
@@ -75,7 +188,7 @@ def prize_map(cat):
     m = {}
     for p in _all_prizes(cat):
         for pid in p.get("prizeIds") or []:
-            m[pid] = ("backbling" if "backbling" in p["id"] else KIND_CODE.get(p["kind"], p["kind"]), p["name"])
+            m[pid] = ("backbling" if _is_bb(p) else KIND_CODE.get(p["kind"], p["kind"]), p["name"])
     return m
 
 
@@ -225,7 +338,7 @@ def _chances(rows, cat, now, pm, start):
         exp = sum(c * _boost(d, kind, ths) / n for d, c in pool)
         prizes = (wk[2].get("prizes") or []) if (wk and o.get("weekly")) else []
         item = next((z["name"] for z in prizes if z["kind"] == kind), None)
-        bb = any(z["kind"] == kind and "backbling" in z["id"] for z in prizes)
+        bb = any(z["kind"] == kind and _is_bb(z) for z in prizes)
         out.append({"tot": kind == "pirate-shop", "kc": "token" if kind == "pirate-shop" else kind,
                     "l": "Sac à dos" if bb else (names.get(kind) or KIND_FR.get(kind, kind)), "n": n, "w": bool(o.get("weekly")),
                     "item": item, "c": sum(c for _, c in pool), "p": p, "e": exp, "g": got.get(kind, 0)})
@@ -247,7 +360,7 @@ def _collection(rows, cat, now, img_dir):
             img = next((f"img/{f.name}" for f in img_dir.glob(p["id"] + ".*")), p.get("image") or "")
             kind = KIND_CODE.get(p["kind"], p["kind"])
             items.append({"k": "token" if kind == "token" else p["id"], "kc": kind, "name": p["name"], "img": img,
-                          "kind": "Sac à dos" if "backbling" in p["id"] else KIND_FR.get(kind, kind),
+                          "kind": "Sac à dos" if _is_bb(p) else KIND_FR.get(kind, kind),
                           "got": next((mine[i] for i in p.get("prizeIds") or [] if i in mine), None)})
         weeks.append({"n": w["number"], "t": w["title"], "a": a.strftime("%d/%m"), "b": b.strftime("%d/%m"),
                       "s": "cur" if a <= now < b else "past" if now >= b else "next", "known": bool(w.get("prizes")), "items": items})
@@ -338,7 +451,7 @@ def build(rows, totals, records, cfg, data_dir, live_since, now, ver, saved):
         "collection": _collection(rows, cat, now, data_dir / "img"),
         "types": [[TYPE_FR[k], types.get(k, 0)] for k in TYPE_FR if types.get(k)],
         "team": team, "seen": sorted(seen, key=lambda s: s["d"] or "", reverse=True)[:30],
-        "saved": saved, "heat": _heat(rows), "records": [[r[0][1], str(r[1]), r[2][1]] for r in records],
+        "saved": saved, "sprites": _sprites(), "heat": _heat(rows), "records": [[r[0][1], str(r[1]), r[2][1]] for r in records],
     }
 
 

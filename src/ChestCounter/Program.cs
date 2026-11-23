@@ -411,7 +411,7 @@ class ChestReader : FortniteReplayReader.ReplayReader
         RelicChest or RelicChestV1 or RelicChestV2 => "relic",
         BuriedChest or BuriedChestRelicFinder => "buried",
         BootyChest or BootyChestV1 or BootyChestV2 => "booty",
-        Chest or AlwaysSpawnChest or FactionChest => "normal",
+        Chest or AlwaysSpawnChest or FactionChest or Chest5Child or LootCannonChest or CenoteChest => "normal",
         _ => "",   // caisses d'extraction, munitions... : pas des coffres
     };
     public Dictionary<uint, string> HandlerGuids = new();
